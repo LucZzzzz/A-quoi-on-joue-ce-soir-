@@ -280,15 +280,19 @@ function coverHtml(game, opts) {
     '<div class="cover-blob" style="left:'+p1+'%; top:-25%;"></div>' +
     '<div class="cover-blob" style="right:'+p2+'%; bottom:-30%;"></div>' +
     '<span class="cover-emoji" style="'+(opts.small ? 'font-size:17px;filter:none;' : '')+'">'+fam.emoji+'</span>';
+  const base = '<div class="cover" style="background:linear-gradient(155deg,'+fam.c1+','+fam.c2+');">' + generated;
   if (game.coverUrl) {
-    // Image réelle Steam, avec repli automatique sur la jaquette générée si elle ne charge pas
-    const gradId = 'g' + Math.random().toString(36).slice(2);
-    return '<div class="cover" style="background:linear-gradient(155deg,'+fam.c1+','+fam.c2+');" id="'+gradId+'">' +
+    // Image réelle Steam par-dessus le dégradé de secours ; si elle ne charge
+    // pas, on essaie l'image de repli, puis on la retire pour laisser voir
+    // le dégradé + l'icône déjà présents en dessous (jamais de case vide).
+    const fallback = game.coverFallback || '';
+    return base +
       '<img class="cover-img" src="'+game.coverUrl+'" alt="" ' +
-      'onerror="this.onerror=null; this.remove();">' +
+      'data-fallback="'+escapeHtml(fallback)+'" ' +
+      'onerror="if(this.dataset.fallback && this.src!==this.dataset.fallback){this.src=this.dataset.fallback;}else{this.remove();}">' +
       '</div>';
   }
-  return '<div class="cover" style="background:linear-gradient(155deg,'+fam.c1+','+fam.c2+');">' + generated + '</div>';
+  return base + '</div>';
 }
 async function fetchSteamCover(name) {
   try {
