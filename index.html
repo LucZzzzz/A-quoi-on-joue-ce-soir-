@@ -1,0 +1,741 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>On joue à quoi ce soir ?</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🎮</text></svg>">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bungee&family=Work+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+
+<!-- Firebase (v10, compat build : pas besoin d'outil de build) -->
+<script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore-compat.js"></script>
+
+<style>
+  :root {
+    --bg: #F3ECD8;
+    --bg-elevated: #FFFFFF;
+    --bg-elevated-2: #E9DEC0;
+    --card: #FFFFFF;
+    --card-ink: #211A12;
+    --card-ink-dim: #8A7C64;
+    --text: #211A12;
+    --text-dim: #6E6350;
+    --accent: #FF3D77;
+    --accent-ink: #FFFFFF;
+    --pass: #2E4FE3;
+    --match: #14A673;
+    --ink: #211A12;
+    --border: rgba(33, 26, 18, 0.18);
+    --shadow: 6px 6px 0 rgba(33, 26, 18, 0.9);
+    --shadow-soft: 3px 3px 0 rgba(33, 26, 18, 0.55);
+    --radius-card: 22px;
+    --radius: 16px;
+    --font-display: 'Bungee', 'Work Sans', sans-serif;
+    --font-body: 'Work Sans', sans-serif;
+    box-sizing: border-box;
+    padding-top: env(safe-area-inset-top, 0px);
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #1C150D; --bg-elevated: #2B2013; --bg-elevated-2: #372A18;
+      --text: #F3ECD8; --text-dim: #C9BC9C; --ink: #F3ECD8;
+      --border: rgba(243, 236, 216, 0.2);
+      --shadow: 6px 6px 0 rgba(0,0,0,0.7); --shadow-soft: 3px 3px 0 rgba(0,0,0,0.5);
+    }
+  }
+  html { scroll-padding-top: env(safe-area-inset-top, 0px); height: 100%; }
+  * { box-sizing: border-box; }
+  body { margin: 0; height: 100%; background: var(--bg); color: var(--text); font-family: var(--font-body); -webkit-font-smoothing: antialiased; overflow-x: hidden; }
+  .app { max-width: 520px; margin: 0 auto; min-height: 100%; display: flex; flex-direction: column; }
+
+  header.top { padding: 18px 20px 6px; display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+  .brand h1 { font-family: var(--font-display); font-weight: 400; font-size: 19px; margin: 0; letter-spacing: -0.2px; }
+  .brand .dot { color: var(--accent); }
+  .room-pill {
+    font-size: 12px; color: var(--text-dim); display: flex; align-items: center; gap: 6px;
+    padding: 6px 10px; background: var(--bg-elevated); border-radius: 999px; border: 2px solid var(--ink);
+    white-space: nowrap; cursor: pointer;
+  }
+  .room-pill b { color: var(--text); letter-spacing: 1px; }
+
+  .players-row { padding: 8px 20px 14px; display: flex; align-items: center; gap: 8px; overflow-x: auto; }
+  .avatar {
+    width: 32px; height: 32px; border-radius: 50%; display: flex; align-items: center; justify-content: center;
+    font-family: var(--font-display); font-weight: 400; font-size: 11px; color: #fff; flex: none;
+    border: 2px solid var(--bg); box-shadow: 0 0 0 1.5px var(--ink);
+  }
+  .avatar.off { opacity: 0.35; filter: grayscale(0.6); }
+  .toggle-playing { margin-left: auto; font-size: 12px; color: var(--text-dim); display: flex; align-items: center; gap: 6px; flex: none; cursor: pointer; user-select: none; }
+  .switch { width: 30px; height: 18px; border-radius: 999px; background: var(--bg-elevated-2); border: 2px solid var(--ink); position: relative; }
+  .switch::after { content: ''; position: absolute; top: 1px; left: 1px; width: 12px; height: 12px; border-radius: 50%; background: var(--card-ink-dim); }
+  .switch.on { background: var(--accent); }
+  .switch.on::after { transform: translateX(12px); background: #fff; }
+
+  main { flex: 1; padding: 0 20px 12px; display: flex; flex-direction: column; min-height: 0; }
+
+  .info-box { background: var(--bg-elevated); border: 2.5px solid var(--ink); border-radius: var(--radius); padding: 16px; font-size: 14px; color: var(--text-dim); line-height: 1.5; box-shadow: var(--shadow-soft); }
+  .info-box strong { color: var(--text); }
+
+  .deck-wrap { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 420px; position: relative; }
+  .deck-stack { position: relative; width: 100%; max-width: 320px; aspect-ratio: 3 / 4; }
+  .swipe-card {
+    position: absolute; inset: 0; background: var(--card); color: var(--card-ink);
+    border-radius: var(--radius-card); border: 3px solid var(--card-ink); box-shadow: var(--shadow);
+    overflow: hidden; touch-action: none; will-change: transform; cursor: grab;
+  }
+  .swipe-card:active { cursor: grabbing; }
+  @keyframes cardPopIn { from { transform: scale(.92) translateY(16px); opacity: 0; } to { transform: scale(1) translateY(0); opacity: 1; } }
+  .swipe-card.card-enter { animation: cardPopIn .45s cubic-bezier(.34,1.56,.64,1) both; }
+  .cover { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; overflow: hidden; }
+  .cover-blob { position: absolute; width: 75%; padding-top: 75%; border-radius: 50%; background: rgba(255,255,255,0.16); }
+  .cover-emoji { font-size: 62px; filter: drop-shadow(0 8px 16px rgba(0,0,0,.35)); }
+  .cover-img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; background: #111; }
+  .cover-src { position: absolute; bottom: 8px; right: 10px; font-size: 10px; color: rgba(255,255,255,.75); background: rgba(0,0,0,.35); padding: 2px 7px; border-radius: 999px; }
+  @keyframes stampPunchYes { 0%{transform:rotate(10deg) scale(.6);opacity:0;} 55%{transform:rotate(10deg) scale(1.18);opacity:1;} 100%{transform:rotate(10deg) scale(1);opacity:1;} }
+  @keyframes stampPunchNo { 0%{transform:rotate(-10deg) scale(.6);opacity:0;} 55%{transform:rotate(-10deg) scale(1.18);opacity:1;} 100%{transform:rotate(-10deg) scale(1);opacity:1;} }
+  .stamp.yes.punch { animation: stampPunchYes .45s cubic-bezier(.34,1.56,.64,1) both; }
+  .stamp.no.punch { animation: stampPunchNo .45s cubic-bezier(.34,1.56,.64,1) both; }
+  .swipe-card .stamp { position: absolute; top: 24px; font-family: var(--font-display); font-weight: 400; font-size: 24px; padding: 6px 14px; z-index: 5; border-radius: 10px; border: 3px solid currentColor; opacity: 0; pointer-events: none; }
+  .swipe-card .stamp.yes { right: 20px; color: var(--match); transform: rotate(10deg); }
+  .swipe-card .stamp.no { left: 20px; color: var(--pass); transform: rotate(-10deg); }
+
+  .card-caption { text-align: center; padding: 16px 10px 0; }
+  .card-caption .tag { display: inline-block; font-size: 12px; font-weight: 600; background: var(--bg-elevated-2); color: var(--text-dim); padding: 5px 12px; border-radius: 999px; margin-bottom: 8px; }
+  .card-caption .name { font-family: var(--font-display); font-weight: 400; font-size: 22px; line-height: 1.2; color: var(--text); }
+  .card-caption .added-by { font-size: 13px; color: var(--text-dim); margin-top: 4px; }
+
+  .deck-actions { display: flex; gap: 22px; align-items: center; justify-content: center; margin-top: 26px; }
+  .round-btn { width: 60px; height: 60px; border-radius: 50%; border: 3px solid var(--ink); display: flex; align-items: center; justify-content: center; font-size: 24px; cursor: pointer; box-shadow: var(--shadow-soft); }
+  .round-btn:active { transform: scale(.92) translate(2px,2px); box-shadow: none; }
+  .round-btn.no { background: var(--bg-elevated); color: var(--pass); }
+  .round-btn.yes { background: var(--accent); color: var(--accent-ink); width: 72px; height: 72px; font-size: 28px; }
+  .deck-progress { text-align: center; font-size: 12px; color: var(--text-dim); margin-bottom: 18px; }
+
+  .section-title { font-family: var(--font-display); font-size: 13px; font-weight: 400; margin: 18px 0 10px; color: var(--text); }
+  .btn { font-family: var(--font-body); font-weight: 700; font-size: 14px; padding: 11px 16px; border-radius: 12px; border: 2.5px solid var(--ink); cursor: pointer; }
+  .btn-primary { background: var(--accent); color: var(--accent-ink); box-shadow: var(--shadow-soft); }
+  .btn-primary:active { transform: translate(2px,2px); box-shadow: none; }
+  .btn-ghost { background: var(--bg-elevated); color: var(--text); border: 2px solid var(--border); }
+  .btn-row { display: flex; gap: 10px; }
+  .btn-row .btn { flex: 1; }
+
+  .view-toggle { display: flex; gap: 6px; flex: none; }
+  .view-toggle button { background: var(--bg-elevated); border: 2px solid var(--ink); color: var(--text-dim); border-radius: 10px; padding: 7px 10px; font-size: 15px; cursor: pointer; }
+  .view-toggle button.active { background: var(--accent); color: var(--accent-ink); }
+
+  .game-list { display: flex; flex-direction: column; gap: 8px; margin-top: 12px; }
+  .game-row { background: var(--bg-elevated); border: 2px solid var(--border); border-radius: 14px; padding: 10px 12px; display: flex; align-items: center; gap: 10px; }
+  .game-row .g-cover { width: 40px; height: 40px; border-radius: 10px; flex: none; position: relative; overflow: hidden; display: flex; align-items: center; justify-content: center; font-size: 17px; }
+  .game-row .g-cover img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+  .game-row .g-name { font-weight: 600; font-size: 14px; flex: 1; }
+  .game-row .g-tag { font-size: 11px; color: var(--text-dim); background: var(--bg-elevated-2); padding: 3px 9px; border-radius: 999px; flex: none; }
+  .game-row .g-del { background: none; border: none; color: var(--text-dim); font-size: 16px; cursor: pointer; padding: 4px; flex: none; }
+
+  .game-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px 12px; margin-top: 12px; }
+  .grid-item { display: flex; flex-direction: column; gap: 6px; }
+  .grid-cover { position: relative; aspect-ratio: 1; border-radius: 14px; overflow: hidden; border: 2px solid var(--border); }
+  .grid-cover .cover-emoji { font-size: 28px; }
+  .grid-del { position: absolute; top: 5px; right: 5px; width: 22px; height: 22px; border-radius: 50%; background: rgba(20,10,26,.6); color: #fff; border: none; font-size: 11px; display: flex; align-items: center; justify-content: center; cursor: pointer; }
+  .grid-name { font-size: 12px; font-weight: 600; text-align: center; line-height: 1.25; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+  .grid-tag { font-size: 10.5px; color: var(--text-dim); text-align: center; }
+
+  .inline-form { background: var(--bg-elevated); border: 2.5px solid var(--ink); border-radius: 16px; padding: 14px; display: flex; flex-direction: column; gap: 10px; box-shadow: var(--shadow-soft); }
+  .inline-form input, .inline-form textarea { background: var(--bg-elevated-2); border: 1.5px solid var(--border); border-radius: 10px; padding: 11px 12px; color: var(--text); font-family: var(--font-body); font-size: 14.5px; outline: none; width: 100%; }
+  .inline-form textarea { min-height: 110px; resize: vertical; font-size: 13.5px; }
+  .inline-form input:focus, .inline-form textarea:focus { border-color: var(--accent); }
+
+  .import-preview { display: flex; flex-direction: column; gap: 6px; max-height: 260px; overflow-y: auto; }
+  .import-row { display: flex; align-items: center; gap: 10px; background: var(--bg-elevated-2); border-radius: 10px; padding: 8px 10px; font-size: 13.5px; }
+  .import-row input[type=checkbox] { accent-color: var(--accent); width: 16px; height: 16px; flex: none; }
+  .import-row span { flex: 1; }
+
+  .match-list { display: flex; flex-direction: column; gap: 10px; margin-top: 12px; }
+  .match-row { background: var(--bg-elevated); border: 2px solid var(--border); border-radius: 16px; padding: 14px 16px; }
+  .match-row.full { border: 3px solid var(--accent); box-shadow: var(--shadow-soft); }
+  .match-row .m-top { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+  .match-row .m-name { font-family: var(--font-display); font-weight: 400; font-size: 15px; flex: 1; }
+  .match-row .m-badge { font-size: 11px; font-weight: 700; color: #fff; background: var(--accent); padding: 4px 9px; border-radius: 999px; flex: none; }
+  .match-row .m-score { font-size: 12.5px; color: var(--text-dim); margin-top: 6px; }
+
+  nav.tabbar { position: sticky; bottom: 0; display: flex; gap: 6px; padding: 10px 16px calc(10px + env(safe-area-inset-bottom,0px)); background: linear-gradient(to top, var(--bg) 60%, transparent); }
+  nav.tabbar .tab { flex: 1; background: var(--bg-elevated); border: 2.5px solid var(--ink); border-radius: 14px; padding: 10px 6px 8px; text-align: center; color: var(--text-dim); cursor: pointer; }
+  nav.tabbar .tab.active { background: var(--accent); color: var(--accent-ink); box-shadow: var(--shadow-soft); }
+  nav.tabbar .tab .ic { font-size: 18px; display: block; }
+  nav.tabbar .tab .lb { font-size: 10.5px; font-weight: 600; margin-top: 2px; display: block; }
+
+  .toast { position: fixed; left: 50%; bottom: 92px; transform: translateX(-50%) translateY(10px); background: var(--bg-elevated); border: 2.5px solid var(--ink); color: var(--text); padding: 10px 16px; border-radius: 12px; font-size: 13px; box-shadow: var(--shadow-soft); opacity: 0; transition: opacity .2s ease, transform .2s ease; pointer-events: none; z-index: 50; max-width: 86%; text-align: center; }
+  .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+  .gate { position: fixed; inset: 0; background: var(--bg); display: flex; align-items: center; justify-content: center; padding: 24px; z-index: 100; }
+  .gate .box { max-width: 340px; width: 100%; text-align: center; }
+  .gate h2 { font-family: var(--font-display); font-weight: 400; font-size: 22px; margin: 0 0 8px; }
+  .gate p { color: var(--text-dim); font-size: 14px; line-height: 1.5; margin: 0 0 18px; }
+  .gate input { width: 100%; background: var(--bg-elevated); border: 2.5px solid var(--ink); border-radius: 12px; padding: 12px 14px; font-size: 15px; margin-bottom: 12px; color: var(--text); font-family: var(--font-body); text-align: center; }
+
+  .modal-overlay { position: fixed; inset: 0; background: rgba(10,4,14,.6); display: flex; align-items: center; justify-content: center; padding: 24px; z-index: 200; }
+  .modal-box { background: var(--bg-elevated); border: 3px solid var(--ink); border-radius: 18px; padding: 20px; max-width: 320px; width: 100%; box-shadow: var(--shadow); }
+  .modal-box p { font-size: 14.5px; line-height: 1.5; margin: 0 0 16px; color: var(--text); }
+  .modal-box input { background: var(--bg-elevated-2); border: 1.5px solid var(--border); border-radius: 10px; padding: 11px 12px; color: var(--text); font-family: var(--font-body); font-size: 14.5px; outline: none; width: 100%; margin-bottom: 14px; }
+</style>
+</head>
+<body>
+<div class="app" id="app">
+  <header class="top">
+    <div class="brand"><h1>On joue à quoi<span class="dot">&nbsp;?</span></h1></div>
+    <div class="room-pill" id="roomPill" title="Copier le code de la salle">🔑 <b id="roomCodeLabel">----</b></div>
+  </header>
+  <div class="players-row" id="playersRow"></div>
+  <main id="main"></main>
+  <nav class="tabbar">
+    <div class="tab active" data-tab="deck"><span class="ic">🎴</span><span class="lb">Swiper</span></div>
+    <div class="tab" data-tab="library"><span class="ic">📚</span><span class="lb">Bibliothèque</span></div>
+    <div class="tab" data-tab="matches"><span class="ic">✨</span><span class="lb">Matchs</span></div>
+  </nav>
+</div>
+<div class="toast" id="toast"></div>
+
+<script>
+"use strict";
+
+// =================================================================
+// ⚠️ CONFIGURATION — colle ici la config de TON projet Firebase.
+// Firebase Console > ⚙️ Paramètres du projet > Tes applications > SDK setup.
+// =================================================================
+const FIREBASE_CONFIG = {
+  apiKey: "COLLE_TA_CLE_ICI",
+  authDomain: "TON-PROJET.firebaseapp.com",
+  projectId: "TON-PROJET",
+  storageBucket: "TON-PROJET.appspot.com",
+  messagingSenderId: "000000000000",
+  appId: "1:000000000000:web:xxxxxxxxxxxxxxxxxxxxxx",
+};
+// =================================================================
+
+firebase.initializeApp(FIREBASE_CONFIG);
+const db = firebase.firestore();
+
+function uid() { return (crypto.randomUUID ? crypto.randomUUID() : 'id-' + Math.random().toString(36).slice(2) + Date.now()); }
+function escapeHtml(s) { return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+function initials(name) { return (name || '?').trim().split(/\s+/).slice(0,2).map(w=>w[0]).join('').toUpperCase() || '?'; }
+function colorFor(id) {
+  const palette = ['#FF3D77','#2E4FE3','#14A673','#F2A93B','#8A5FD6','#E0587A','#2FA6A0'];
+  let h = 0; for (let i=0;i<id.length;i++) h=(h*31+id.charCodeAt(i))>>>0;
+  return palette[h % palette.length];
+}
+let toastTimer;
+function toast(msg) {
+  const el = document.getElementById('toast');
+  el.textContent = msg; el.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => el.classList.remove('show'), 2600);
+}
+function closeModal() { const ov = document.getElementById('modalOverlay'); if (ov) ov.remove(); }
+function showConfirm(message, confirmLabel, onConfirm) {
+  closeModal();
+  const ov = document.createElement('div'); ov.className = 'modal-overlay'; ov.id = 'modalOverlay';
+  const box = document.createElement('div'); box.className = 'modal-box';
+  box.innerHTML = '<p>'+escapeHtml(message)+'</p><div class="btn-row"><button class="btn btn-ghost" id="mCancel">Annuler</button><button class="btn btn-primary" id="mOk" style="background:var(--pass);">'+escapeHtml(confirmLabel||'Confirmer')+'</button></div>';
+  ov.appendChild(box);
+  ov.addEventListener('click', e => { if (e.target === ov) closeModal(); });
+  document.body.appendChild(ov);
+  box.querySelector('#mCancel').onclick = closeModal;
+  box.querySelector('#mOk').onclick = () => { closeModal(); onConfirm(); };
+}
+
+// ---------------------------------------------------------------
+// Jaquettes : vraie image Steam automatique (via /api/steam-cover),
+// avec repli sur une jaquette générée (couleur + icône par genre).
+// ---------------------------------------------------------------
+const COVER_FAMILIES = [
+  { match: /fps|tir|shooter/, emoji: '🔫', c1: '#C9506B', c2: '#5C2233' },
+  { match: /rpg|r[oô]le/, emoji: '🗡️', c1: '#7C9CD4', c2: '#2A3762' },
+  { match: /party|soir[ée]e|ambiance/, emoji: '🎉', c1: '#F2A93B', c2: '#7A4E14' },
+  { match: /coop|[ée]quipe/, emoji: '🤝', c1: '#74A788', c2: '#28422F' },
+  { match: /indie/, emoji: '🌱', c1: '#5FB0AE', c2: '#1C4544' },
+  { match: /strat/, emoji: '♟️', c1: '#B385CC', c2: '#3C264C' },
+  { match: /simu/, emoji: '🛠️', c1: '#D48C56', c2: '#4E2F16' },
+  { match: /plate?forme|plat/, emoji: '🕹️', c1: '#F2A93B', c2: '#2A1A34' },
+  { match: /horreur|peur/, emoji: '👻', c1: '#4A2E5C', c2: '#130A18' },
+  { match: /sport|course|racing/, emoji: '⚽', c1: '#74A788', c2: '#193026' },
+  { match: /steam/, emoji: '🎮', c1: '#7C9CD4', c2: '#212B4E' },
+  { match: /puzzle|r[ée]flexion/, emoji: '🧩', c1: '#5FB0AE', c2: '#1C4544' },
+];
+function hashNum(str) { let h=0; for (let i=0;i<str.length;i++) h=(h*31+str.charCodeAt(i))>>>0; return h; }
+function coverFamilyFor(game) {
+  const tag = (game.tag || '').toLowerCase();
+  const found = COVER_FAMILIES.find(f => f.match.test(tag));
+  if (found) return found;
+  return COVER_FAMILIES[hashNum(game.name || 'x') % COVER_FAMILIES.length];
+}
+function coverHtml(game, opts) {
+  opts = opts || {};
+  const fam = coverFamilyFor(game);
+  const seed = hashNum(game.name || 'x');
+  const p1 = 15 + (seed % 55), p2 = 15 + ((seed >> 5) % 55);
+  const generated =
+    '<div class="cover-blob" style="left:'+p1+'%; top:-25%;"></div>' +
+    '<div class="cover-blob" style="right:'+p2+'%; bottom:-30%;"></div>' +
+    '<span class="cover-emoji" style="'+(opts.small ? 'font-size:17px;filter:none;' : '')+'">'+fam.emoji+'</span>';
+  if (game.coverUrl) {
+    // Image réelle Steam, avec repli automatique sur la jaquette générée si elle ne charge pas
+    const gradId = 'g' + Math.random().toString(36).slice(2);
+    return '<div class="cover" style="background:linear-gradient(155deg,'+fam.c1+','+fam.c2+');" id="'+gradId+'">' +
+      '<img class="cover-img" src="'+game.coverUrl+'" alt="" ' +
+      'onerror="this.onerror=null; this.remove();">' +
+      '</div>';
+  }
+  return '<div class="cover" style="background:linear-gradient(155deg,'+fam.c1+','+fam.c2+');">' + generated + '</div>';
+}
+async function fetchSteamCover(name) {
+  try {
+    const r = await fetch('/api/steam-cover?name=' + encodeURIComponent(name));
+    if (!r.ok) return null;
+    const data = await r.json();
+    if (data && data.found) return { image: data.image, fallbackImage: data.fallbackImage };
+    return null;
+  } catch (e) { return null; }
+}
+
+// ---------------------------------------------------------------
+// Salle + identité (pas de compte : un code de salle à partager)
+// ---------------------------------------------------------------
+function randomRoomCode() {
+  const letters = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+  let s = ''; for (let i = 0; i < 5; i++) s += letters[Math.floor(Math.random() * letters.length)];
+  return s;
+}
+let roomCode = localStorage.getItem('gn_room') || '';
+let myId = localStorage.getItem('gn_uid') || uid();
+localStorage.setItem('gn_uid', myId);
+let myName = localStorage.getItem('gn_name') || '';
+
+function roomRef() { return db.collection('rooms').doc(roomCode); }
+function gamesCol() { return roomRef().collection('games'); }
+function swipesCol() { return roomRef().collection('swipes'); }
+function playersCol() { return roomRef().collection('players'); }
+
+const State = { games: [], swipes: [], players: [] };
+const listeners = [];
+function onChange(fn) { listeners.push(fn); }
+function emit() { listeners.forEach(fn => fn()); }
+
+function startListening() {
+  gamesCol().orderBy('ts', 'asc').onSnapshot(snap => {
+    State.games = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    emit();
+  });
+  swipesCol().onSnapshot(snap => {
+    State.swipes = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    emit();
+  });
+  playersCol().onSnapshot(snap => {
+    State.players = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    emit();
+  });
+}
+
+async function joinRoom(code, name) {
+  roomCode = code.toUpperCase().trim();
+  myName = name.trim();
+  localStorage.setItem('gn_room', roomCode);
+  localStorage.setItem('gn_name', myName);
+  await playersCol().doc(myId).set({
+    name: myName, color: colorFor(myId), playing: true, ts: Date.now()
+  }, { merge: true });
+  startListening();
+  document.getElementById('gate').remove();
+  renderAll();
+}
+
+async function togglePlaying() {
+  const me = State.players.find(p => p.id === myId);
+  const next = !(me && me.playing !== false);
+  await playersCol().doc(myId).update({ playing: next });
+}
+
+async function addGame(name, tag) {
+  name = name.trim();
+  if (!name) return;
+  tag = (tag || 'Autre').trim() || 'Autre';
+  if (State.games.some(g => g.name.toLowerCase() === name.toLowerCase())) {
+    toast('« ' + name + ' » est déjà dans la bibliothèque.');
+    return;
+  }
+  const ref = await gamesCol().add({ name, tag, addedBy: myName, ts: Date.now(), coverUrl: null });
+  const found = await fetchSteamCover(name);
+  if (found) {
+    try { await ref.update({ coverUrl: found.image, coverFallback: found.fallbackImage }); } catch (e) {}
+  }
+}
+
+async function addGamesBulk(list) {
+  const existing = new Set(State.games.map(g => g.name.toLowerCase()));
+  const toAdd = list.filter(g => !existing.has(g.name.toLowerCase()));
+  if (!toAdd.length) { toast('Rien de nouveau à ajouter.'); return; }
+  toast('Ajout de ' + toAdd.length + ' jeu(x)…');
+  for (const g of toAdd) {
+    try {
+      const ref = await gamesCol().add({ name: g.name, tag: g.tag || 'Steam', addedBy: myName, ts: Date.now(), coverUrl: null });
+      fetchSteamCover(g.name).then(found => {
+        if (found) ref.update({ coverUrl: found.image, coverFallback: found.fallbackImage }).catch(() => {});
+      });
+    } catch (e) {}
+  }
+  toast(toAdd.length + ' jeu(x) ajouté(s), recherche des jaquettes en cours…');
+}
+
+async function removeGame(id) { try { await gamesCol().doc(id).delete(); } catch (e) {} }
+
+async function clearAllGames() {
+  const ids = State.games.map(g => g.id);
+  for (const id of ids) { try { await gamesCol().doc(id).delete(); } catch (e) {} }
+  toast('Bibliothèque vidée.');
+}
+
+const locallySwiped = new Set();
+async function swipeGame(gameId, liked) {
+  locallySwiped.add(gameId);
+  const docId = gameId + '__' + myId;
+  try {
+    await swipesCol().doc(docId).set({ gameId, playerId: myId, playerName: myName, liked, ts: Date.now() });
+  } catch (e) { toast('Le swipe n\'a pas pu être enregistré.'); }
+}
+
+function activePlayers() { return State.players.filter(p => p.playing !== false); }
+function myUnswiped() {
+  const mine = new Set(State.swipes.filter(s => s.playerId === myId).map(s => s.gameId));
+  return State.games.filter(g => !mine.has(g.id) && !locallySwiped.has(g.id));
+}
+function matchStats() {
+  const denom = Math.max(activePlayers().length, 1);
+  return State.games.map(g => {
+    const likers = State.swipes.filter(s => s.gameId === g.id && s.liked);
+    return { game: g, likers, count: likers.length, denom, full: likers.length >= denom && denom >= 2 };
+  }).filter(m => m.count > 0).sort((a,b) => (b.count/b.denom) - (a.count/a.denom) || b.count - a.count);
+}
+
+// ---------------------------------------------------------------
+// Import Steam (nettoyage par règles, sans IA)
+// ---------------------------------------------------------------
+const MONTHS = 'janv|f[ée]vr|mars|avr|mai|juin|juil|ao[uû]t|sept|oct|nov|d[ée]c|jan|feb|mar|apr|jun|jul|aug|sep|nov|dec';
+const JUNK_PATTERNS = [
+  /^\d[\d.,\s]*\s*(hrs?|heures?|h|min(ute)?s?)\s*(on record|de jeu)?$/i,
+  /^(aujourd.?hui|hier|demain)$/i,
+  /(jouer|play game|installer|install|acheter|buy|voir|view|d[ée]tails|details|statistiques|stats|community hub|dlc|dans la biblioth[èe]que|in library|wishlist|liste de souhaits)/i,
+  /(succ[èe]s|achievements?|trophées?|trophies|d[ée]bloqu[ée]|unlocked|obtenu(e|s)?|progression|compl[ée]t[ée])/i,
+  /^\d{1,4}\s*\/\s*\d{1,4}$/,
+  /^\d{1,3}\s*%$/,
+  /(derni[èe]re? (partie|session|fois|lancement)|last (played|launched|session)|lanc[ée] pour la derni[èe]re fois|temps de jeu|playtime|il y a\s+\d|jours?\s+ago|\bago\b)/i,
+  new RegExp('\\b\\d{1,2}\\s*(' + MONTHS + ')[a-zéû.]*\\s*\\d{0,4}\\b', 'i'),
+  new RegExp('\\b(' + MONTHS + ')[a-zéû.]*\\s+\\d{4}\\b', 'i'),
+  /^\d{1,2}[\/\-.]\d{1,2}[\/\-.]\d{2,4}$/,
+  /^\d+$/, /^[-–—•·]+$/,
+];
+const STEAM_UI_EXACT = new Set(['jeux','nom','evaluation','evaluations','categorie','categories','recherche','filtrer','trier par','played','mes stats de jeu','mon contenu de jeu','succes','temps de jeu','temps de jeu total','dernier lancement']);
+const STEAM_UI_SUBSTRINGS = ['trouver un jeu','jeux suivis','tous les jeux','termines a 100','lances recemment','recemment lances','jeux termines','followed games','recently played','all games','find a game','temps de jeu','mes stats de jeu','mon contenu de jeu','dernier lancement'];
+function normalizeForMatch(str) { return str.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[()\[\]]/g,' ').replace(/\d+/g,' ').replace(/[▲▼△▽:▶►]/g,' ').replace(/\s+/g,' ').trim(); }
+function isSteamUiNoise(t) { const n = normalizeForMatch(t); if (!n) return true; if (STEAM_UI_EXACT.has(n)) return true; return STEAM_UI_SUBSTRINGS.some(s => n.includes(s)); }
+function cleanupPastedList(raw) {
+  const seen = new Set(); const out = []; let skippedHeader = false;
+  raw.split('\n').forEach(line => {
+    let t = line.replace(/\s+/g, ' ').trim();
+    if (!t) return;
+    if (!skippedHeader) { skippedHeader = true; return; }
+    if (t.length < 2 || t.length > 60) return;
+    if (isSteamUiNoise(t)) return;
+    if (JUNK_PATTERNS.some(rx => rx.test(t))) return;
+    const key = t.toLowerCase();
+    if (seen.has(key)) return;
+    seen.add(key); out.push(t);
+  });
+  return out;
+}
+
+// ---------------------------------------------------------------
+// Rendu
+// ---------------------------------------------------------------
+let currentTab = 'deck';
+let deckAnimating = false;
+let libraryView = localStorage.getItem('gn_library_view') || 'list';
+
+function renderHeader() {
+  document.getElementById('roomCodeLabel').textContent = roomCode;
+  const row = document.getElementById('playersRow');
+  row.innerHTML = '';
+  State.players.forEach(p => {
+    const el = document.createElement('div');
+    el.className = 'avatar' + (p.playing === false ? ' off' : '');
+    el.style.background = p.color || colorFor(p.id);
+    el.textContent = initials(p.name);
+    el.title = p.name + (p.playing === false ? ' (ne joue pas ce soir)' : '');
+    row.appendChild(el);
+  });
+  const me = State.players.find(p => p.id === myId);
+  const playing = me ? me.playing !== false : true;
+  const tgl = document.createElement('div');
+  tgl.className = 'toggle-playing';
+  tgl.innerHTML = '<span>Je joue ce soir</span><span class="switch ' + (playing ? 'on' : '') + '"></span>';
+  tgl.onclick = togglePlaying;
+  row.appendChild(tgl);
+}
+
+function renderMain() {
+  const main = document.getElementById('main');
+  document.querySelectorAll('.tab').forEach(t => t.classList.toggle('active', t.dataset.tab === currentTab));
+  if (currentTab === 'deck' && deckAnimating) return;
+  if (currentTab === 'deck') renderDeck(main);
+  else if (currentTab === 'library') renderLibrary(main);
+  else renderMatches(main);
+}
+function renderAll() { renderHeader(); renderMain(); }
+onChange(renderAll);
+
+function infoBox(title, body) {
+  const d = document.createElement('div'); d.className = 'info-box';
+  d.innerHTML = '<strong>' + title + '</strong><br>' + body; return d;
+}
+
+function renderDeck(main) {
+  main.innerHTML = '';
+  const cards = myUnswiped();
+  if (!State.games.length) { main.appendChild(infoBox('Bibliothèque vide.', 'Ajoute vos jeux dans l\'onglet <strong>Bibliothèque</strong> pour commencer à swiper.')); return; }
+  if (!cards.length) { main.appendChild(infoBox('Tout est swipé !', (myName ? myName : '') + ', tu as donné ton avis sur tous les jeux. Va voir l\'onglet <strong>Matchs</strong>, ou ajoute d\'autres jeux.')); return; }
+
+  const progress = document.createElement('div'); progress.className = 'deck-progress';
+  progress.textContent = (State.games.length - cards.length) + ' / ' + State.games.length + ' jeux vus';
+  main.appendChild(progress);
+
+  const wrap = document.createElement('div'); wrap.className = 'deck-wrap';
+  const stack = document.createElement('div'); stack.className = 'deck-stack';
+  wrap.appendChild(stack);
+
+  const visible = cards.slice(0, 3);
+  visible.forEach((g, i) => {
+    const depth = visible.length - 1 - i;
+    const card = document.createElement('div');
+    card.className = 'swipe-card' + (depth === 0 ? ' card-enter' : '');
+    card.style.transform = 'scale(' + (1 - depth * 0.045) + ') translateY(' + (depth * 10) + 'px)';
+    card.style.zIndex = String(10 - depth);
+    card.innerHTML = coverHtml(g) + '<div class="stamp yes">OUI</div><div class="stamp no">NON</div>';
+    if (depth === 0) attachSwipeGestures(card, g.id);
+    stack.appendChild(card);
+  });
+
+  const top = cards[0];
+  const caption = document.createElement('div'); caption.className = 'card-caption';
+  caption.innerHTML = '<div class="tag">' + escapeHtml(top.tag || 'Jeu') + '</div><div class="name">' + escapeHtml(top.name) + '</div><div class="added-by">Ajouté par ' + escapeHtml(top.addedBy || 'quelqu\'un') + '</div>';
+  wrap.appendChild(caption);
+
+  const actions = document.createElement('div'); actions.className = 'deck-actions';
+  const noBtn = document.createElement('button'); noBtn.className = 'round-btn no'; noBtn.textContent = '✕';
+  noBtn.onclick = () => animateDecision(stack.lastElementChild, cards[0].id, false);
+  const yesBtn = document.createElement('button'); yesBtn.className = 'round-btn yes'; yesBtn.textContent = '♥';
+  yesBtn.onclick = () => animateDecision(stack.lastElementChild, cards[0].id, true);
+  actions.appendChild(noBtn); actions.appendChild(yesBtn);
+  main.appendChild(wrap); main.appendChild(actions);
+}
+
+function animateDecision(topCard, gameId, liked) {
+  if (!topCard) { swipeGame(gameId, liked); return; }
+  deckAnimating = true;
+  topCard.style.transition = 'transform .55s cubic-bezier(.22,.61,.36,1), opacity .55s ease';
+  topCard.style.transform = 'translateX(' + (liked ? '150%' : '-150%') + ') translateY(-10px) rotate(' + (liked ? 22 : -22) + 'deg) scale(0.94)';
+  topCard.style.opacity = '0';
+  const stampEl = topCard.querySelector(liked ? '.stamp.yes' : '.stamp.no');
+  if (stampEl) { stampEl.style.opacity = '1'; stampEl.classList.add('punch'); }
+  swipeGame(gameId, liked);
+  setTimeout(() => { deckAnimating = false; if (currentTab === 'deck') renderMain(); }, 560);
+}
+
+function attachSwipeGestures(card, gameId) {
+  let startX=0, startY=0, dx=0, dragging=false;
+  const stampYes = card.querySelector('.stamp.yes'), stampNo = card.querySelector('.stamp.no');
+  function onDown(e) { dragging = true; const p = e.touches ? e.touches[0] : e; startX=p.clientX; startY=p.clientY; card.style.transition='none'; }
+  function onMove(e) {
+    if (!dragging) return;
+    const p = e.touches ? e.touches[0] : e;
+    dx = p.clientX - startX; const dy = p.clientY - startY; const rot = dx/18;
+    card.style.transform = 'translate('+dx+'px,'+dy+'px) rotate('+rot+'deg)';
+    const t = Math.min(Math.abs(dx)/90, 1);
+    if (dx > 0) { stampYes.style.opacity=t; stampNo.style.opacity=0; } else { stampNo.style.opacity=t; stampYes.style.opacity=0; }
+    e.preventDefault && e.cancelable && e.preventDefault();
+  }
+  function onUp() {
+    if (!dragging) return; dragging = false;
+    if (Math.abs(dx) > 90) {
+      const liked = dx > 0; deckAnimating = true;
+      card.style.transition = 'transform .55s cubic-bezier(.22,.61,.36,1), opacity .55s ease';
+      card.style.transform = 'translateX('+(liked?'150%':'-150%')+') translateY(-10px) rotate('+(liked?22:-22)+'deg) scale(0.94)';
+      card.style.opacity = '0';
+      const stampEl = liked ? stampYes : stampNo; stampEl.style.opacity='1'; stampEl.classList.add('punch');
+      swipeGame(gameId, liked);
+      setTimeout(() => { deckAnimating = false; if (currentTab === 'deck') renderMain(); }, 560);
+    } else {
+      card.style.transition = 'transform .32s cubic-bezier(.34,1.56,.64,1)';
+      card.style.transform = 'translate(0,0) rotate(0)';
+      stampYes.style.opacity=0; stampNo.style.opacity=0;
+    }
+    dx = 0;
+  }
+  card.addEventListener('pointerdown', onDown);
+  card.addEventListener('pointermove', onMove);
+  card.addEventListener('pointerup', onUp);
+  card.addEventListener('pointerleave', onUp);
+}
+
+function setLibraryView(v) { libraryView = v; localStorage.setItem('gn_library_view', v); renderMain(); }
+
+function renderLibrary(main) {
+  main.innerHTML = '';
+  const btnRow = document.createElement('div'); btnRow.className = 'btn-row';
+  const addBtn = document.createElement('button'); addBtn.className = 'btn btn-primary'; addBtn.textContent = '+ Ajouter un jeu';
+  const importBtn = document.createElement('button'); importBtn.className = 'btn btn-ghost'; importBtn.textContent = '📋 Importer depuis Steam';
+  btnRow.appendChild(addBtn); btnRow.appendChild(importBtn); main.appendChild(btnRow);
+
+  const formZone = document.createElement('div'); formZone.style.marginTop = '10px'; main.appendChild(formZone);
+
+  addBtn.onclick = () => {
+    formZone.innerHTML = '';
+    const f = document.createElement('div'); f.className = 'inline-form';
+    f.innerHTML = '<input type="text" id="gnName" placeholder="Nom du jeu"><input type="text" id="gnTag" placeholder="Genre (FPS, Coop, Party game…)"><div class="btn-row"><button class="btn btn-ghost" id="gnCancel">Annuler</button><button class="btn btn-primary" id="gnSave">Ajouter</button></div>';
+    formZone.appendChild(f);
+    document.getElementById('gnCancel').onclick = () => { formZone.innerHTML = ''; };
+    document.getElementById('gnSave').onclick = () => {
+      const name = document.getElementById('gnName').value, tag = document.getElementById('gnTag').value;
+      if (!name.trim()) { toast('Donne un nom au jeu.'); return; }
+      addGame(name, tag); formZone.innerHTML = '';
+    };
+  };
+  importBtn.onclick = () => {
+    formZone.innerHTML = '';
+    const f = document.createElement('div'); f.className = 'inline-form';
+    f.innerHTML = '<textarea id="pasteBox" placeholder="Colle ici la liste copiée depuis ta page Steam."></textarea><div class="btn-row"><button class="btn btn-ghost" id="pasteCancel">Annuler</button><button class="btn btn-primary" id="pasteGo">Analyser</button></div>';
+    formZone.appendChild(f);
+    document.getElementById('pasteCancel').onclick = () => { formZone.innerHTML = ''; };
+    document.getElementById('pasteGo').onclick = () => showImportPreview(formZone, document.getElementById('pasteBox').value);
+  };
+
+  const titleRow = document.createElement('div');
+  titleRow.style.cssText = 'display:flex;align-items:center;justify-content:space-between;margin-top:18px;gap:10px;';
+  const title = document.createElement('div'); title.className = 'section-title'; title.style.margin = '0';
+  title.textContent = 'Bibliothèque (' + State.games.length + ')';
+  titleRow.appendChild(title);
+  const rightSide = document.createElement('div'); rightSide.style.cssText = 'display:flex;align-items:center;gap:10px;';
+  const toggle = document.createElement('div'); toggle.className = 'view-toggle';
+  toggle.innerHTML = '<button data-v="list" title="Vue liste">☰</button><button data-v="grid" title="Vue grille">⊞</button>';
+  toggle.querySelectorAll('button').forEach(b => { b.classList.toggle('active', b.dataset.v === libraryView); b.onclick = () => setLibraryView(b.dataset.v); });
+  rightSide.appendChild(toggle);
+  if (State.games.length) {
+    const clearAllBtn = document.createElement('button'); clearAllBtn.className='g-del'; clearAllBtn.style.cssText='font-size:12px;color:var(--pass);'; clearAllBtn.textContent = '🗑'; clearAllBtn.title = 'Tout supprimer';
+    clearAllBtn.onclick = () => showConfirm('Supprimer les ' + State.games.length + ' jeux de la bibliothèque ? Action irréversible.', 'Tout supprimer', clearAllGames);
+    rightSide.appendChild(clearAllBtn);
+  }
+  titleRow.appendChild(rightSide); main.appendChild(titleRow);
+
+  if (!State.games.length) { main.appendChild(infoBox('Aucun jeu pour l\'instant', 'Ajoute-en un ou importe ta bibliothèque Steam ci-dessus.')); return; }
+  const sorted = State.games.slice().sort((a,b) => a.name.localeCompare(b.name));
+  main.appendChild(libraryView === 'grid' ? buildGameGrid(sorted) : buildGameList(sorted));
+}
+
+function buildGameList(games) {
+  const list = document.createElement('div'); list.className = 'game-list';
+  games.forEach(g => {
+    const row = document.createElement('div'); row.className = 'game-row';
+    row.innerHTML = '<div class="g-cover">'+coverHtml(g,{small:true})+'</div><span class="g-name">'+escapeHtml(g.name)+'</span><span class="g-tag">'+escapeHtml(g.tag||'Autre')+'</span><button class="g-del" title="Retirer">🗑</button>';
+    row.querySelector('.g-del').onclick = () => showConfirm('Retirer « '+g.name+' » de la bibliothèque ?', 'Retirer', () => removeGame(g.id));
+    list.appendChild(row);
+  });
+  return list;
+}
+function buildGameGrid(games) {
+  const grid = document.createElement('div'); grid.className = 'game-grid';
+  games.forEach(g => {
+    const item = document.createElement('div'); item.className = 'grid-item';
+    item.innerHTML = '<div class="grid-cover">'+coverHtml(g,{small:true})+'<button class="grid-del" title="Retirer">✕</button></div><div class="grid-name">'+escapeHtml(g.name)+'</div><div class="grid-tag">'+escapeHtml(g.tag||'Autre')+'</div>';
+    item.querySelector('.grid-del').onclick = e => { e.stopPropagation(); showConfirm('Retirer « '+g.name+' » de la bibliothèque ?', 'Retirer', () => removeGame(g.id)); };
+    grid.appendChild(item);
+  });
+  return grid;
+}
+
+function showImportPreview(zone, raw) {
+  const candidates = cleanupPastedList(raw);
+  zone.innerHTML = '';
+  if (!candidates.length) { zone.appendChild(infoBox('Rien trouvé', 'Essaie de coller un bloc plus large de la page Steam.')); return; }
+  const box = document.createElement('div'); box.className = 'inline-form';
+  const preview = document.createElement('div'); preview.className = 'import-preview';
+  candidates.forEach((name, i) => {
+    const row = document.createElement('label'); row.className = 'import-row';
+    row.innerHTML = '<input type="checkbox" checked data-i="'+i+'"><span>'+escapeHtml(name)+'</span>';
+    preview.appendChild(row);
+  });
+  box.appendChild(preview);
+  const confirmBtn = document.createElement('button'); confirmBtn.className = 'btn btn-primary'; confirmBtn.textContent = 'Ajouter la sélection ('+candidates.length+')';
+  confirmBtn.style.marginTop = '4px';
+  confirmBtn.onclick = () => {
+    const checked = Array.from(preview.querySelectorAll('input:checked')).map(cb => ({ name: candidates[+cb.dataset.i], tag: 'Steam' }));
+    if (!checked.length) { toast('Coche au moins un jeu.'); return; }
+    addGamesBulk(checked); zone.innerHTML = '';
+  };
+  box.appendChild(confirmBtn);
+  zone.appendChild(box);
+}
+
+function renderMatches(main) {
+  main.innerHTML = '';
+  const title = document.createElement('div'); title.className = 'section-title'; title.textContent = 'Matchs de ce soir';
+  main.appendChild(title);
+  const stats = matchStats();
+  if (!stats.length) { main.appendChild(infoBox('Pas encore de match', 'Dès que plusieurs d\'entre vous auront aimé le même jeu, il apparaîtra ici.')); return; }
+  const list = document.createElement('div'); list.className = 'match-list';
+  stats.forEach(m => {
+    const row = document.createElement('div'); row.className = 'match-row' + (m.full ? ' full' : '');
+    row.innerHTML = '<div class="m-top"><span class="m-name">'+escapeHtml(m.game.name)+'</span>'+(m.full ? '<span class="m-badge">MATCH 🎉</span>' : '')+'</div><div class="m-score">'+m.count+' / '+m.denom+' aiment ce jeu ce soir</div>';
+    list.appendChild(row);
+  });
+  main.appendChild(list);
+}
+
+document.querySelectorAll('nav.tabbar .tab').forEach(tab => {
+  tab.addEventListener('click', () => { currentTab = tab.dataset.tab; renderAll(); });
+});
+document.getElementById('roomPill').addEventListener('click', () => {
+  if (navigator.clipboard) navigator.clipboard.writeText(roomCode).then(() => toast('Code copié : ' + roomCode));
+});
+
+// ---------------------------------------------------------------
+// Porte d'entrée : rejoindre ou créer une salle
+// ---------------------------------------------------------------
+function showGate() {
+  const gate = document.createElement('div'); gate.className = 'gate'; gate.id = 'gate';
+  gate.innerHTML =
+    '<div class="box">' +
+    '<h2>Salle de jeu 🎮</h2>' +
+    '<p>Entre le code de salle de tes amis pour les rejoindre, ou laisse vide pour en créer une nouvelle.</p>' +
+    '<input type="text" id="gateCode" placeholder="Code de salle (ex : AB12C)" maxlength="8" style="text-transform:uppercase;">' +
+    '<input type="text" id="gateName" placeholder="Ton prénom">' +
+    '<button class="btn btn-primary" id="gateGo" style="width:100%;">Rejoindre / créer la salle</button>' +
+    '</div>';
+  document.body.appendChild(gate);
+  document.getElementById('gateGo').onclick = () => {
+    const name = document.getElementById('gateName').value.trim();
+    let code = document.getElementById('gateCode').value.trim();
+    if (!name) { toast('Donne ton prénom.'); return; }
+    if (!code) code = randomRoomCode();
+    joinRoom(code, name);
+  };
+}
+
+if (roomCode && myName) {
+  startListening();
+  playersCol().doc(myId).set({ name: myName, color: colorFor(myId), playing: true, ts: Date.now() }, { merge: true });
+} else {
+  showGate();
+}
+</script>
+</body>
+</html>
