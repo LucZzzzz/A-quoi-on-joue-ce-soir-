@@ -3,11 +3,13 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>On joue à quoi ce soir ?</title>
-<link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🎮</text></svg>">
+<meta name="color-scheme" content="dark">
+<meta name="theme-color" content="#0D0B0F">
+<title>À quoi jouer ce soir ?</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><rect width=%22100%22 height=%22100%22 rx=%2216%22 fill=%22%230D0B0F%22/><text x=%2250%22 y=%2270%22 font-size=%2270%22 text-anchor=%22middle%22 fill=%22%23C9A65B%22>✦</text></svg>">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Bungee&family=Work+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;600;700&family=Cinzel+Decorative:wght@700&family=Cormorant+Garamond:ital,wght@0,500;0,600;0,700;1,500;1,600&display=swap" rel="stylesheet">
 
 <!-- Firebase (v10, compat build : pas besoin d'outil de build) -->
 <script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-app-compat.js"></script>
@@ -15,185 +17,242 @@
 
 <style>
   :root {
-    --bg: #F3ECD8;
-    --bg-elevated: #FFFFFF;
-    --bg-elevated-2: #E9DEC0;
-    --card: #FFFFFF;
-    --card-ink: #211A12;
-    --card-ink-dim: #8A7C64;
-    --text: #211A12;
-    --text-dim: #6E6350;
-    --accent: #FF3D77;
-    --accent-ink: #FFFFFF;
-    --pass: #2E4FE3;
-    --match: #14A673;
-    --ink: #211A12;
-    --border: rgba(33, 26, 18, 0.18);
-    --shadow: 6px 6px 0 rgba(33, 26, 18, 0.9);
-    --shadow-soft: 3px 3px 0 rgba(33, 26, 18, 0.55);
-    --radius-card: 22px;
-    --radius: 16px;
-    --font-display: 'Bungee', 'Work Sans', sans-serif;
-    --font-body: 'Work Sans', sans-serif;
+    color-scheme: dark;
+    --bg: #0D0B0F;
+    --bg-elevated: #17131B;
+    --bg-elevated-2: #221C28;
+    --text: #EFE6D2;
+    --text-dim: #A79D8B;
+    --gold: #C9A65B;
+    --gold-hi: #E6CB86;
+    --gold-dim: rgba(201, 166, 91, 0.38);
+    --gold-faint: rgba(201, 166, 91, 0.16);
+    --crimson: #A8322B;
+    --crimson-hi: #D8503F;
+    --border: rgba(201, 166, 91, 0.24);
+    --font-display: 'Cinzel', 'Times New Roman', serif;
+    --font-title: 'Cinzel Decorative', 'Cinzel', serif;
+    --font-body: 'Cormorant Garamond', Georgia, serif;
     box-sizing: border-box;
     padding-top: env(safe-area-inset-top, 0px);
     padding-bottom: env(safe-area-inset-bottom, 0px);
   }
-  @media (prefers-color-scheme: dark) {
-    :root:not([data-theme="light"]) {
-      --bg: #1C150D; --bg-elevated: #2B2013; --bg-elevated-2: #372A18;
-      --text: #F3ECD8; --text-dim: #C9BC9C; --ink: #F3ECD8;
-      --border: rgba(243, 236, 216, 0.2);
-      --shadow: 6px 6px 0 rgba(0,0,0,0.7); --shadow-soft: 3px 3px 0 rgba(0,0,0,0.5);
-    }
-  }
   html { scroll-padding-top: env(safe-area-inset-top, 0px); height: 100%; }
-  * { box-sizing: border-box; }
-  body { margin: 0; height: 100%; background: var(--bg); color: var(--text); font-family: var(--font-body); -webkit-font-smoothing: antialiased; overflow-x: hidden; }
-  .app { max-width: 520px; margin: 0 auto; min-height: 100%; display: flex; flex-direction: column; }
-
-  header.top { padding: 18px 20px 6px; display: flex; align-items: center; justify-content: space-between; gap: 12px; }
-  .brand h1 { font-family: var(--font-display); font-weight: 400; font-size: 19px; margin: 0; letter-spacing: -0.2px; }
-  .brand .dot { color: var(--accent); }
-  .room-pill {
-    font-size: 12px; color: var(--text-dim); display: flex; align-items: center; gap: 6px;
-    padding: 6px 10px; background: var(--bg-elevated); border-radius: 999px; border: 2px solid var(--ink);
-    white-space: nowrap; cursor: pointer;
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  body {
+    margin: 0; height: 100%;
+    background:
+      radial-gradient(120% 55% at 50% -12%, rgba(168, 50, 43, 0.30), transparent 62%),
+      radial-gradient(110% 50% at 50% 112%, rgba(58, 82, 122, 0.30), transparent 62%),
+      var(--bg);
+    background-attachment: fixed;
+    color: var(--text);
+    font-family: var(--font-body);
+    font-size: 17px; font-weight: 500;
+    -webkit-font-smoothing: antialiased;
+    overflow-x: hidden;
   }
-  .room-pill b { color: var(--text); letter-spacing: 1px; }
+  /* Grain de toile, très discret */
+  body::after {
+    content: ''; position: fixed; inset: 0; z-index: 0; pointer-events: none; opacity: 0.07;
+    background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='180' height='180'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='2' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 1  0 0 0 0 .93  0 0 0 0 .8  0 0 0 .7 0'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>");
+  }
+  .app { position: relative; z-index: 1; max-width: 520px; margin: 0 auto; min-height: 100%; display: flex; flex-direction: column; }
 
-  .players-row { padding: 8px 20px 14px; display: flex; align-items: center; gap: 8px; overflow-x: auto; }
+  /* ---------- En-tête ---------- */
+  header.top { padding: 20px 20px 10px; display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+  .brand-sub { font-family: var(--font-display); font-size: 9.5px; letter-spacing: 0.32em; text-transform: uppercase; color: var(--gold); margin-bottom: 4px; }
+  .brand h1 { font-family: var(--font-title); font-weight: 700; font-size: 21px; margin: 0; letter-spacing: 0.02em; color: var(--text); line-height: 1.1; }
+  .room-pill {
+    font-family: var(--font-display); font-size: 10px; letter-spacing: 0.16em; text-transform: uppercase; color: var(--text-dim);
+    display: flex; align-items: center; gap: 8px; padding: 7px 12px; background: rgba(23, 19, 27, 0.7);
+    border: 1px solid var(--border); border-radius: 2px; white-space: nowrap; cursor: pointer;
+  }
+  .room-pill b { color: var(--gold-hi); font-weight: 600; letter-spacing: 0.22em; }
+  .rule { display: flex; align-items: center; gap: 10px; padding: 0 20px; color: var(--gold); font-size: 8px; }
+  .rule::before, .rule::after { content: ''; flex: 1; height: 1px; background: linear-gradient(90deg, transparent, var(--gold-dim)); }
+  .rule::after { background: linear-gradient(270deg, transparent, var(--gold-dim)); }
+
+  .players-row { padding: 14px 20px 12px; display: flex; align-items: center; gap: 8px; overflow-x: auto; }
   .avatar {
     width: 32px; height: 32px; border-radius: 50%; display: flex; align-items: center; justify-content: center;
-    font-family: var(--font-display); font-weight: 400; font-size: 11px; color: #fff; flex: none;
-    border: 2px solid var(--bg); box-shadow: 0 0 0 1.5px var(--ink);
+    font-family: var(--font-display); font-weight: 600; font-size: 11px; color: #F4EBD8; flex: none;
+    border: 1px solid var(--gold); box-shadow: 0 0 0 3px rgba(13, 11, 15, 0.9), 0 0 0 4px var(--gold-faint);
+    margin-right: 3px;
   }
-  .avatar.off { opacity: 0.35; filter: grayscale(0.6); }
-  .toggle-playing { margin-left: auto; font-size: 12px; color: var(--text-dim); display: flex; align-items: center; gap: 6px; flex: none; cursor: pointer; user-select: none; }
-  .switch { width: 30px; height: 18px; border-radius: 999px; background: var(--bg-elevated-2); border: 2px solid var(--ink); position: relative; }
-  .switch::after { content: ''; position: absolute; top: 1px; left: 1px; width: 12px; height: 12px; border-radius: 50%; background: var(--card-ink-dim); }
-  .switch.on { background: var(--accent); }
-  .switch.on::after { transform: translateX(12px); background: #fff; }
+  .avatar.off { opacity: 0.32; filter: grayscale(0.7); }
+  .toggle-playing { margin-left: auto; font-family: var(--font-display); font-size: 9.5px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--text-dim); display: flex; align-items: center; gap: 8px; flex: none; cursor: pointer; user-select: none; }
+  .switch { width: 32px; height: 16px; border-radius: 999px; background: transparent; border: 1px solid var(--gold-dim); position: relative; }
+  .switch::after { content: ''; position: absolute; top: 2px; left: 2px; width: 10px; height: 10px; border-radius: 50%; background: var(--text-dim); transition: transform .2s ease, background .2s ease; }
+  .switch.on { border-color: var(--gold); background: var(--gold-faint); }
+  .switch.on::after { transform: translateX(16px); background: var(--gold-hi); }
 
   main { flex: 1; padding: 0 20px 12px; display: flex; flex-direction: column; min-height: 0; }
 
-  .info-box { background: var(--bg-elevated); border: 2.5px solid var(--ink); border-radius: var(--radius); padding: 16px; font-size: 14px; color: var(--text-dim); line-height: 1.5; box-shadow: var(--shadow-soft); }
-  .info-box strong { color: var(--text); }
+  .info-box { background: rgba(23, 19, 27, 0.75); border: 1px solid var(--border); border-radius: 2px; padding: 18px; font-size: 16.5px; color: var(--text-dim); line-height: 1.45; }
+  .info-box strong { font-family: var(--font-display); font-weight: 600; font-size: 12px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--gold-hi); }
+  .hint { font-size: 15px; color: var(--text-dim); line-height: 1.4; font-style: italic; }
+  .hint b { color: var(--gold-hi); font-style: normal; font-weight: 600; }
 
+  /* ---------- Paquet de cartes ---------- */
   .deck-wrap { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 420px; position: relative; }
   .deck-stack { position: relative; width: 100%; max-width: 320px; aspect-ratio: 3 / 4; }
   .swipe-card {
-    position: absolute; inset: 0; background: var(--card); color: var(--card-ink);
-    border-radius: var(--radius-card); border: 3px solid var(--card-ink); box-shadow: var(--shadow);
+    position: absolute; inset: 0; background: #0C0A0E; border-radius: 3px;
+    border: 1px solid var(--gold);
+    box-shadow: 0 24px 50px rgba(0, 0, 0, 0.7), 0 0 0 6px rgba(201, 166, 91, 0.06);
     overflow: hidden; touch-action: none; will-change: transform; cursor: grab;
   }
+  .swipe-card { user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; }
   .swipe-card:active { cursor: grabbing; }
-  @keyframes cardPopIn { from { transform: scale(.92) translateY(16px); opacity: 0; } to { transform: scale(1) translateY(0); opacity: 1; } }
-  .swipe-card.card-enter { animation: cardPopIn .45s cubic-bezier(.34,1.56,.64,1) both; }
+  .swipe-card::after { content: ''; position: absolute; inset: 9px; border: 1px solid rgba(230, 203, 134, 0.5); pointer-events: none; z-index: 3; }
+  .orn { position: absolute; width: 7px; height: 7px; background: var(--gold-hi); transform: rotate(45deg); z-index: 4; pointer-events: none; }
+  .orn.tl { top: 5.5px; left: 5.5px; } .orn.tr { top: 5.5px; right: 5.5px; }
+  .orn.bl { bottom: 5.5px; left: 5.5px; } .orn.br { bottom: 5.5px; right: 5.5px; }
+  @keyframes cardPopIn { from { transform: scale(.93) translateY(16px); opacity: 0; } to { transform: scale(1) translateY(0); opacity: 1; } }
+  .swipe-card.card-enter { animation: cardPopIn .45s cubic-bezier(.34, 1.4, .64, 1) backwards; }
+
   .cover { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; overflow: hidden; }
-  .cover-blob { position: absolute; width: 75%; padding-top: 75%; border-radius: 50%; background: rgba(255,255,255,0.16); }
-  .cover-emoji { font-size: 62px; filter: drop-shadow(0 8px 16px rgba(0,0,0,.35)); }
-  .cover-img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; background: #111; }
-  .cover-src { position: absolute; bottom: 8px; right: 10px; font-size: 10px; color: rgba(255,255,255,.75); background: rgba(0,0,0,.35); padding: 2px 7px; border-radius: 999px; }
-  @keyframes stampPunchYes { 0%{transform:rotate(10deg) scale(.6);opacity:0;} 55%{transform:rotate(10deg) scale(1.18);opacity:1;} 100%{transform:rotate(10deg) scale(1);opacity:1;} }
-  @keyframes stampPunchNo { 0%{transform:rotate(-10deg) scale(.6);opacity:0;} 55%{transform:rotate(-10deg) scale(1.18);opacity:1;} 100%{transform:rotate(-10deg) scale(1);opacity:1;} }
-  .stamp.yes.punch { animation: stampPunchYes .45s cubic-bezier(.34,1.56,.64,1) both; }
-  .stamp.no.punch { animation: stampPunchNo .45s cubic-bezier(.34,1.56,.64,1) both; }
-  .swipe-card .stamp { position: absolute; top: 24px; font-family: var(--font-display); font-weight: 400; font-size: 24px; padding: 6px 14px; z-index: 5; border-radius: 10px; border: 3px solid currentColor; opacity: 0; pointer-events: none; }
-  .swipe-card .stamp.yes { right: 20px; color: var(--match); transform: rotate(10deg); }
-  .swipe-card .stamp.no { left: 20px; color: var(--pass); transform: rotate(-10deg); }
+  .cover::after { content: ''; position: absolute; inset: 0; pointer-events: none;
+    background: linear-gradient(to top, rgba(8, 6, 10, 0.5), transparent 38%), radial-gradient(ellipse at center, transparent 55%, rgba(0, 0, 0, 0.35)); }
+  .cover-blob { position: absolute; width: 75%; padding-top: 75%; border-radius: 50%; background: rgba(230, 203, 134, 0.10); }
+  .cover-emoji { font-size: 62px; opacity: 0.92;
+    filter: grayscale(1) sepia(0.9) saturate(2.4) brightness(1.2) drop-shadow(0 6px 14px rgba(0, 0, 0, 0.6)); }
+  .cover-emoji.sm { font-size: 18px; filter: grayscale(1) sepia(0.9) saturate(2.4) brightness(1.2); }
+  .grid-cover .cover-emoji.sm { font-size: 30px; }
+  .cover-img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; background: #0C0A0E; pointer-events: none; -webkit-user-drag: none; user-select: none; }
 
-  .card-caption { text-align: center; padding: 16px 10px 0; }
-  .card-caption .tag { display: inline-block; font-size: 12px; font-weight: 600; background: var(--bg-elevated-2); color: var(--text-dim); padding: 5px 12px; border-radius: 999px; margin-bottom: 8px; }
-  .card-caption .name { font-family: var(--font-display); font-weight: 400; font-size: 22px; line-height: 1.2; color: var(--text); }
-  .card-caption .added-by { font-size: 13px; color: var(--text-dim); margin-top: 4px; }
+  @keyframes stampPunchYes { 0% { transform: rotate(8deg) scale(.6); opacity: 0; } 55% { transform: rotate(8deg) scale(1.16); opacity: 1; } 100% { transform: rotate(8deg) scale(1); opacity: 1; } }
+  @keyframes stampPunchNo { 0% { transform: rotate(-8deg) scale(.6); opacity: 0; } 55% { transform: rotate(-8deg) scale(1.16); opacity: 1; } 100% { transform: rotate(-8deg) scale(1); opacity: 1; } }
+  .stamp.yes.punch { animation: stampPunchYes .45s cubic-bezier(.34, 1.4, .64, 1) both; }
+  .stamp.no.punch { animation: stampPunchNo .45s cubic-bezier(.34, 1.4, .64, 1) both; }
+  .swipe-card .stamp {
+    position: absolute; top: 28px; z-index: 5; font-family: var(--font-display); font-weight: 700; font-size: 21px; letter-spacing: 0.22em;
+    padding: 7px 14px 7px 18px; border: 3px double currentColor; background: rgba(10, 8, 12, 0.6); opacity: 0; pointer-events: none;
+  }
+  .swipe-card .stamp.yes { right: 26px; color: var(--gold-hi); transform: rotate(8deg); }
+  .swipe-card .stamp.no { left: 26px; color: var(--crimson-hi); transform: rotate(-8deg); }
 
-  .deck-actions { display: flex; gap: 22px; align-items: center; justify-content: center; margin-top: 26px; }
-  .round-btn { width: 60px; height: 60px; border-radius: 50%; border: 3px solid var(--ink); display: flex; align-items: center; justify-content: center; font-size: 24px; cursor: pointer; box-shadow: var(--shadow-soft); }
-  .round-btn:active { transform: scale(.92) translate(2px,2px); box-shadow: none; }
-  .round-btn.no { background: var(--bg-elevated); color: var(--pass); }
-  .round-btn.yes { background: var(--accent); color: var(--accent-ink); width: 72px; height: 72px; font-size: 28px; }
-  .deck-progress { text-align: center; font-size: 12px; color: var(--text-dim); margin-bottom: 18px; }
+  .card-caption { text-align: center; padding: 20px 6px 0; max-width: 340px; }
+  .card-caption .tag { display: inline-block; font-family: var(--font-display); font-size: 10px; letter-spacing: 0.24em; text-transform: uppercase; color: var(--gold-hi); border: 1px solid var(--gold-dim); padding: 4px 12px; margin-bottom: 10px; }
+  .card-caption .name { font-family: var(--font-display); font-weight: 600; font-size: 19px; letter-spacing: 0.06em; line-height: 1.25; color: var(--text); }
+  .card-caption .added-by { font-style: italic; font-size: 16px; color: var(--text-dim); margin-top: 6px; }
 
-  .section-title { font-family: var(--font-display); font-size: 13px; font-weight: 400; margin: 18px 0 10px; color: var(--text); }
-  .btn { font-family: var(--font-body); font-weight: 700; font-size: 14px; padding: 11px 16px; border-radius: 12px; border: 2.5px solid var(--ink); cursor: pointer; }
-  .btn-primary { background: var(--accent); color: var(--accent-ink); box-shadow: var(--shadow-soft); }
-  .btn-primary:active { transform: translate(2px,2px); box-shadow: none; }
-  .btn-ghost { background: var(--bg-elevated); color: var(--text); border: 2px solid var(--border); }
+  .deck-actions { display: flex; gap: 26px; align-items: center; justify-content: center; margin-top: 24px; }
+  .round-btn {
+    width: 58px; height: 58px; border-radius: 50%; border: 1px solid var(--gold);
+    background: radial-gradient(circle at 30% 25%, #2A2230, #100D13); color: var(--crimson-hi);
+    display: flex; align-items: center; justify-content: center; font-size: 22px; cursor: pointer;
+    box-shadow: 0 0 0 4px rgba(201, 166, 91, 0.08), 0 12px 26px rgba(0, 0, 0, 0.6); transition: transform .12s ease;
+  }
+  .round-btn:active { transform: scale(0.92); }
+  .round-btn.yes { width: 74px; height: 74px; font-size: 28px; color: #1A1208; border-color: #F0D999; background: radial-gradient(circle at 30% 25%, #F0D999, #B48F45); }
+  .deck-progress { text-align: center; font-family: var(--font-display); font-size: 9.5px; letter-spacing: 0.24em; text-transform: uppercase; color: var(--text-dim); margin-bottom: 14px; }
+
+  /* ---------- Boutons, titres, formulaires ---------- */
+  .section-title { font-family: var(--font-display); font-weight: 600; font-size: 12px; letter-spacing: 0.2em; text-transform: uppercase; margin: 0; color: var(--gold-hi); }
+  .section-title.ornate { display: flex; align-items: center; gap: 12px; margin: 20px 0 10px; }
+  .section-title.ornate::before, .section-title.ornate::after { content: ''; flex: 1; height: 1px; background: linear-gradient(90deg, transparent, var(--gold-dim)); }
+  .section-title.ornate::after { background: linear-gradient(270deg, transparent, var(--gold-dim)); }
+  .btn { font-family: var(--font-display); font-weight: 600; font-size: 11px; letter-spacing: 0.16em; text-transform: uppercase; padding: 13px 14px; border-radius: 2px; border: 1px solid var(--gold); background: transparent; color: var(--gold-hi); cursor: pointer; }
+  .btn:disabled { opacity: 0.5; cursor: default; }
+  .btn-primary { background: linear-gradient(180deg, #DDBC70, #B08C44); color: #1A1208; border-color: #EBD08D; box-shadow: 0 0 0 3px rgba(201, 166, 91, 0.10); }
+  .btn-primary:active { transform: translateY(1px); }
+  .btn-ghost { background: rgba(23, 19, 27, 0.8); }
   .btn-row { display: flex; gap: 10px; }
   .btn-row .btn { flex: 1; }
+  .btn-sm { padding: 8px 10px; font-size: 9.5px; }
+  .link-btn { background: none; border: none; padding: 6px 0; font-family: var(--font-body); font-style: italic; font-size: 15.5px; color: var(--text-dim); text-decoration: underline; text-decoration-color: var(--gold-dim); cursor: pointer; text-align: left; }
 
   .view-toggle { display: flex; gap: 6px; flex: none; }
-  .view-toggle button { background: var(--bg-elevated); border: 2px solid var(--ink); color: var(--text-dim); border-radius: 10px; padding: 7px 10px; font-size: 15px; cursor: pointer; }
-  .view-toggle button.active { background: var(--accent); color: var(--accent-ink); }
+  .view-toggle button { background: transparent; border: 1px solid var(--gold-dim); color: var(--text-dim); border-radius: 2px; padding: 5px 9px; font-size: 14px; line-height: 1; cursor: pointer; }
+  .view-toggle button.active { background: var(--gold); color: #1A1208; border-color: var(--gold); }
+  .icon-btn { background: none; border: none; color: var(--text-dim); cursor: pointer; padding: 4px; display: flex; align-items: center; flex: none; }
+  .icon-btn svg { width: 16px; height: 16px; }
+  .icon-btn.danger { color: var(--crimson-hi); }
 
-  .game-list { display: flex; flex-direction: column; gap: 8px; margin-top: 12px; }
-  .game-row { background: var(--bg-elevated); border: 2px solid var(--border); border-radius: 14px; padding: 10px 12px; display: flex; align-items: center; gap: 10px; }
-  .game-row .g-cover { width: 40px; height: 40px; border-radius: 10px; flex: none; position: relative; overflow: hidden; display: flex; align-items: center; justify-content: center; font-size: 17px; }
-  .game-row .g-cover img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
-  .game-row .g-name { font-weight: 600; font-size: 14px; flex: 1; }
-  .game-row .g-tag { font-size: 11px; color: var(--text-dim); background: var(--bg-elevated-2); padding: 3px 9px; border-radius: 999px; flex: none; }
-  .game-row .g-del { background: none; border: none; color: var(--text-dim); font-size: 16px; cursor: pointer; padding: 4px; flex: none; }
+  .inline-form { background: rgba(23, 19, 27, 0.85); border: 1px solid var(--border); border-radius: 2px; padding: 16px; display: flex; flex-direction: column; gap: 12px; }
+  .inline-form input[type=text], .inline-form textarea {
+    background: var(--bg); border: 1px solid var(--gold-dim); border-radius: 2px; padding: 11px 12px; color: var(--text);
+    font-family: var(--font-body); font-size: 17px; font-weight: 500; outline: none; width: 100%;
+  }
+  .inline-form textarea { min-height: 110px; resize: vertical; }
+  .inline-form input::placeholder, .inline-form textarea::placeholder { color: rgba(167, 157, 139, 0.6); font-style: italic; }
+  .inline-form input:focus, .inline-form textarea:focus { border-color: var(--gold-hi); }
 
-  .game-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px 12px; margin-top: 12px; }
+  .import-preview { display: flex; flex-direction: column; gap: 4px; max-height: 300px; overflow-y: auto; padding-right: 2px; }
+  .import-row { display: flex; align-items: center; gap: 10px; background: var(--bg); border: 1px solid var(--gold-faint); padding: 8px 10px; font-size: 16px; }
+  .import-row input[type=checkbox] { accent-color: var(--gold); width: 16px; height: 16px; flex: none; }
+  .import-row .ir-name { flex: 1; line-height: 1.2; }
+  .import-row .ir-meta { font-family: var(--font-display); font-size: 9px; letter-spacing: 0.1em; color: var(--text-dim); flex: none; }
+  .import-tools { display: flex; gap: 8px; flex-wrap: wrap; }
+
+  /* ---------- Bibliothèque ---------- */
+  .game-list { display: flex; flex-direction: column; gap: 6px; margin-top: 12px; }
+  .game-row { background: rgba(23, 19, 27, 0.7); border: 1px solid var(--gold-faint); padding: 8px 10px; display: flex; align-items: center; gap: 12px; }
+  .g-cover { width: 40px; height: 40px; flex: none; position: relative; overflow: hidden; border: 1px solid var(--gold-dim); display: flex; align-items: center; justify-content: center; }
+  .g-main { flex: 1; min-width: 0; }
+  .g-name { font-weight: 600; font-size: 17px; line-height: 1.15; }
+  .g-by { font-style: italic; font-size: 14.5px; color: var(--text-dim); margin-top: 1px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .g-tag { font-family: var(--font-display); font-size: 8.5px; letter-spacing: 0.16em; text-transform: uppercase; color: var(--gold); border: 1px solid var(--gold-faint); padding: 3px 7px; flex: none; }
+
+  .game-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px 12px; margin-top: 12px; }
   .grid-item { display: flex; flex-direction: column; gap: 6px; }
-  .grid-cover { position: relative; aspect-ratio: 1; border-radius: 14px; overflow: hidden; border: 2px solid var(--border); }
-  .grid-cover .cover-emoji { font-size: 28px; }
-  .grid-del { position: absolute; top: 5px; right: 5px; width: 22px; height: 22px; border-radius: 50%; background: rgba(20,10,26,.6); color: #fff; border: none; font-size: 11px; display: flex; align-items: center; justify-content: center; cursor: pointer; }
-  .grid-name { font-size: 12px; font-weight: 600; text-align: center; line-height: 1.25; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
-  .grid-tag { font-size: 10.5px; color: var(--text-dim); text-align: center; }
+  .grid-cover { position: relative; aspect-ratio: 3 / 4; overflow: hidden; border: 1px solid var(--gold-dim); outline: 1px solid var(--gold-faint); outline-offset: 2px; display: flex; align-items: center; justify-content: center; }
+  .grid-del { position: absolute; top: 5px; right: 5px; z-index: 6; width: 22px; height: 22px; border-radius: 50%; background: rgba(10, 8, 12, 0.72); color: var(--text); border: 1px solid var(--gold-dim); font-size: 10px; display: flex; align-items: center; justify-content: center; cursor: pointer; }
+  .grid-name { font-size: 15px; font-weight: 600; text-align: center; line-height: 1.15; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+  .grid-by { font-style: italic; font-size: 13px; color: var(--text-dim); text-align: center; line-height: 1.1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
-  .inline-form { background: var(--bg-elevated); border: 2.5px solid var(--ink); border-radius: 16px; padding: 14px; display: flex; flex-direction: column; gap: 10px; box-shadow: var(--shadow-soft); }
-  .inline-form input, .inline-form textarea { background: var(--bg-elevated-2); border: 1.5px solid var(--border); border-radius: 10px; padding: 11px 12px; color: var(--text); font-family: var(--font-body); font-size: 14.5px; outline: none; width: 100%; }
-  .inline-form textarea { min-height: 110px; resize: vertical; font-size: 13.5px; }
-  .inline-form input:focus, .inline-form textarea:focus { border-color: var(--accent); }
+  /* ---------- Matchs ---------- */
+  .match-list { display: flex; flex-direction: column; gap: 10px; margin-top: 4px; }
+  .match-row { background: rgba(23, 19, 27, 0.75); border: 1px solid var(--gold-faint); padding: 12px 14px; display: flex; gap: 12px; align-items: center; }
+  .match-row.full { border-color: var(--gold); box-shadow: 0 0 0 3px rgba(201, 166, 91, 0.08), 0 10px 28px rgba(0, 0, 0, 0.45); background: linear-gradient(135deg, rgba(201, 166, 91, 0.10), rgba(23, 19, 27, 0.85)); }
+  .match-row .m-body { flex: 1; min-width: 0; }
+  .match-row .m-name { font-family: var(--font-display); font-weight: 600; font-size: 14px; letter-spacing: 0.05em; line-height: 1.25; }
+  .match-row .m-score { font-size: 15.5px; color: var(--text-dim); margin-top: 3px; font-style: italic; }
+  .match-row .m-badge { font-family: var(--font-display); font-size: 8.5px; font-weight: 700; letter-spacing: 0.2em; color: #1A1208; background: linear-gradient(180deg, #E6CB86, #B48F45); padding: 5px 8px; flex: none; }
 
-  .import-preview { display: flex; flex-direction: column; gap: 6px; max-height: 260px; overflow-y: auto; }
-  .import-row { display: flex; align-items: center; gap: 10px; background: var(--bg-elevated-2); border-radius: 10px; padding: 8px 10px; font-size: 13.5px; }
-  .import-row input[type=checkbox] { accent-color: var(--accent); width: 16px; height: 16px; flex: none; }
-  .import-row span { flex: 1; }
+  /* ---------- Navigation ---------- */
+  nav.tabbar { position: sticky; bottom: 0; display: flex; padding: 0 12px calc(6px + env(safe-area-inset-bottom, 0px)); background: linear-gradient(to top, var(--bg) 72%, transparent); border-top: 1px solid var(--border); }
+  nav.tabbar .tab { flex: 1; text-align: center; padding: 12px 6px 6px; color: var(--text-dim); cursor: pointer; position: relative; }
+  nav.tabbar .tab.active { color: var(--gold-hi); }
+  nav.tabbar .tab.active::before { content: ''; position: absolute; top: -1px; left: 24%; right: 24%; height: 2px; background: var(--gold); }
+  nav.tabbar .tab .ic { font-size: 17px; display: block; line-height: 1.2; }
+  nav.tabbar .tab .lb { font-family: var(--font-display); font-size: 9px; font-weight: 600; letter-spacing: 0.18em; text-transform: uppercase; margin-top: 3px; display: block; }
 
-  .match-list { display: flex; flex-direction: column; gap: 10px; margin-top: 12px; }
-  .match-row { background: var(--bg-elevated); border: 2px solid var(--border); border-radius: 16px; padding: 14px 16px; }
-  .match-row.full { border: 3px solid var(--accent); box-shadow: var(--shadow-soft); }
-  .match-row .m-top { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
-  .match-row .m-name { font-family: var(--font-display); font-weight: 400; font-size: 15px; flex: 1; }
-  .match-row .m-badge { font-size: 11px; font-weight: 700; color: #fff; background: var(--accent); padding: 4px 9px; border-radius: 999px; flex: none; }
-  .match-row .m-score { font-size: 12.5px; color: var(--text-dim); margin-top: 6px; }
-
-  nav.tabbar { position: sticky; bottom: 0; display: flex; gap: 6px; padding: 10px 16px calc(10px + env(safe-area-inset-bottom,0px)); background: linear-gradient(to top, var(--bg) 60%, transparent); }
-  nav.tabbar .tab { flex: 1; background: var(--bg-elevated); border: 2.5px solid var(--ink); border-radius: 14px; padding: 10px 6px 8px; text-align: center; color: var(--text-dim); cursor: pointer; }
-  nav.tabbar .tab.active { background: var(--accent); color: var(--accent-ink); box-shadow: var(--shadow-soft); }
-  nav.tabbar .tab .ic { font-size: 18px; display: block; }
-  nav.tabbar .tab .lb { font-size: 10.5px; font-weight: 600; margin-top: 2px; display: block; }
-
-  .toast { position: fixed; left: 50%; bottom: 92px; transform: translateX(-50%) translateY(10px); background: var(--bg-elevated); border: 2.5px solid var(--ink); color: var(--text); padding: 10px 16px; border-radius: 12px; font-size: 13px; box-shadow: var(--shadow-soft); opacity: 0; transition: opacity .2s ease, transform .2s ease; pointer-events: none; z-index: 50; max-width: 86%; text-align: center; }
+  .toast { position: fixed; left: 50%; top: calc(14px + env(safe-area-inset-top, 0px)); transform: translateX(-50%) translateY(-10px); background: var(--bg-elevated); border: 1px solid var(--gold); color: var(--text); padding: 10px 18px; font-size: 16px; box-shadow: 0 12px 30px rgba(0, 0, 0, 0.6); opacity: 0; transition: opacity .2s ease, transform .2s ease; pointer-events: none; z-index: 50; max-width: 88%; text-align: center; }
   .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
 
-  .gate { position: fixed; inset: 0; background: var(--bg); display: flex; align-items: center; justify-content: center; padding: 24px; z-index: 100; }
-  .gate .box { max-width: 340px; width: 100%; text-align: center; }
-  .gate h2 { font-family: var(--font-display); font-weight: 400; font-size: 22px; margin: 0 0 8px; }
-  .gate p { color: var(--text-dim); font-size: 14px; line-height: 1.5; margin: 0 0 18px; }
-  .gate input { width: 100%; background: var(--bg-elevated); border: 2.5px solid var(--ink); border-radius: 12px; padding: 12px 14px; font-size: 15px; margin-bottom: 12px; color: var(--text); font-family: var(--font-body); text-align: center; }
+  .gate { position: fixed; inset: 0; z-index: 100; display: flex; align-items: center; justify-content: center; padding: 24px;
+    background: radial-gradient(120% 55% at 50% -12%, rgba(168, 50, 43, 0.34), transparent 62%), radial-gradient(110% 50% at 50% 112%, rgba(58, 82, 122, 0.30), transparent 62%), var(--bg); }
+  .gate .box { max-width: 340px; width: 100%; text-align: center; border: 1px solid var(--gold-dim); outline: 1px solid var(--gold-faint); outline-offset: 5px; padding: 30px 22px; background: rgba(13, 11, 15, 0.7); }
+  .gate .brand-sub { margin-bottom: 8px; }
+  .gate h2 { font-family: var(--font-title); font-weight: 700; font-size: 22px; margin: 0 0 12px; }
+  .gate p { color: var(--text-dim); font-size: 16.5px; line-height: 1.4; margin: 0 0 18px; font-style: italic; }
+  .gate input { width: 100%; background: var(--bg); border: 1px solid var(--gold-dim); border-radius: 2px; padding: 12px 14px; font-size: 17px; margin-bottom: 12px; color: var(--text); font-family: var(--font-body); font-weight: 500; text-align: center; outline: none; }
+  .gate input:focus { border-color: var(--gold-hi); }
 
-  .modal-overlay { position: fixed; inset: 0; background: rgba(10,4,14,.6); display: flex; align-items: center; justify-content: center; padding: 24px; z-index: 200; }
-  .modal-box { background: var(--bg-elevated); border: 3px solid var(--ink); border-radius: 18px; padding: 20px; max-width: 320px; width: 100%; box-shadow: var(--shadow); }
-  .modal-box p { font-size: 14.5px; line-height: 1.5; margin: 0 0 16px; color: var(--text); }
-  .modal-box input { background: var(--bg-elevated-2); border: 1.5px solid var(--border); border-radius: 10px; padding: 11px 12px; color: var(--text); font-family: var(--font-body); font-size: 14.5px; outline: none; width: 100%; margin-bottom: 14px; }
+  .modal-overlay { position: fixed; inset: 0; background: rgba(5, 3, 8, 0.72); display: flex; align-items: center; justify-content: center; padding: 24px; z-index: 200; }
+  .modal-box { background: var(--bg-elevated); border: 1px solid var(--gold); outline: 1px solid var(--gold-faint); outline-offset: 4px; padding: 22px; max-width: 330px; width: 100%; box-shadow: 0 24px 60px rgba(0, 0, 0, 0.7); }
+  .modal-box p { font-size: 17.5px; line-height: 1.4; margin: 0 0 18px; }
 </style>
 </head>
 <body>
 <div class="app" id="app">
   <header class="top">
-    <div class="brand"><h1>On joue à quoi<span class="dot">&nbsp;?</span></h1></div>
-    <div class="room-pill" id="roomPill" title="Copier le code de la salle">🔑 <b id="roomCodeLabel">----</b></div>
+    <div class="brand">
+      <div class="brand-sub">Ce soir · entre amis</div>
+      <h1>À quoi jouer ?</h1>
+    </div>
+    <div class="room-pill" id="roomPill" title="Copier le code de la salle">Salle <b id="roomCodeLabel">----</b></div>
   </header>
+  <div class="rule">◆</div>
   <div class="players-row" id="playersRow"></div>
   <main id="main"></main>
   <nav class="tabbar">
-    <div class="tab active" data-tab="deck"><span class="ic">🎴</span><span class="lb">Swiper</span></div>
-    <div class="tab" data-tab="library"><span class="ic">📚</span><span class="lb">Bibliothèque</span></div>
-    <div class="tab" data-tab="matches"><span class="ic">✨</span><span class="lb">Matchs</span></div>
+    <div class="tab active" data-tab="deck"><span class="ic">✦</span><span class="lb">Swiper</span></div>
+    <div class="tab" data-tab="library"><span class="ic">❖</span><span class="lb">Bibliothèque</span></div>
+    <div class="tab" data-tab="matches"><span class="ic">⚜&#xFE0E;</span><span class="lb">Matchs</span></div>
   </nav>
 </div>
 <div class="toast" id="toast"></div>
@@ -202,8 +261,7 @@
 "use strict";
 
 // =================================================================
-// ⚠️ CONFIGURATION — colle ici la config de TON projet Firebase.
-// Firebase Console > ⚙️ Paramètres du projet > Tes applications > SDK setup.
+// ⚠️ CONFIGURATION — config de ton projet Firebase.
 // =================================================================
 const FIREBASE_CONFIG = {
   apiKey: "AIzaSyBRCdHLDRWUnIT-Fc8zwmaB5yG2TJF9wFY",
@@ -218,11 +276,13 @@ const FIREBASE_CONFIG = {
 firebase.initializeApp(FIREBASE_CONFIG);
 const db = firebase.firestore();
 
+const ICON_TRASH = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13M10 11v6M14 11v6"/></svg>';
+
 function uid() { return (crypto.randomUUID ? crypto.randomUUID() : 'id-' + Math.random().toString(36).slice(2) + Date.now()); }
 function escapeHtml(s) { return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
 function initials(name) { return (name || '?').trim().split(/\s+/).slice(0,2).map(w=>w[0]).join('').toUpperCase() || '?'; }
 function colorFor(id) {
-  const palette = ['#FF3D77','#2E4FE3','#14A673','#F2A93B','#8A5FD6','#E0587A','#2FA6A0'];
+  const palette = ['#8C3A34','#3F5C86','#5C7F63','#A8863F','#6E5286','#4E7A7E','#8A5A3A'];
   let h = 0; for (let i=0;i<id.length;i++) h=(h*31+id.charCodeAt(i))>>>0;
   return palette[h % palette.length];
 }
@@ -231,14 +291,14 @@ function toast(msg) {
   const el = document.getElementById('toast');
   el.textContent = msg; el.classList.add('show');
   clearTimeout(toastTimer);
-  toastTimer = setTimeout(() => el.classList.remove('show'), 2600);
+  toastTimer = setTimeout(() => el.classList.remove('show'), 3200);
 }
 function closeModal() { const ov = document.getElementById('modalOverlay'); if (ov) ov.remove(); }
 function showConfirm(message, confirmLabel, onConfirm) {
   closeModal();
   const ov = document.createElement('div'); ov.className = 'modal-overlay'; ov.id = 'modalOverlay';
   const box = document.createElement('div'); box.className = 'modal-box';
-  box.innerHTML = '<p>'+escapeHtml(message)+'</p><div class="btn-row"><button class="btn btn-ghost" id="mCancel">Annuler</button><button class="btn btn-primary" id="mOk" style="background:var(--pass);">'+escapeHtml(confirmLabel||'Confirmer')+'</button></div>';
+  box.innerHTML = '<p>'+escapeHtml(message)+'</p><div class="btn-row"><button class="btn btn-ghost" id="mCancel">Annuler</button><button class="btn btn-primary" id="mOk">'+escapeHtml(confirmLabel||'Confirmer')+'</button></div>';
   ov.appendChild(box);
   ov.addEventListener('click', e => { if (e.target === ov) closeModal(); });
   document.body.appendChild(ov);
@@ -247,47 +307,78 @@ function showConfirm(message, confirmLabel, onConfirm) {
 }
 
 // ---------------------------------------------------------------
-// Jaquettes : vraie image Steam automatique (via /api/steam-cover),
-// avec repli sur une jaquette générée (couleur + icône par genre).
+// Noms : comparaison tolérante (casse, accents, ™ ®, ponctuation)
+// pour reconnaître le même jeu ajouté par deux personnes.
+// ---------------------------------------------------------------
+function normName(s) {
+  return String(s || '')
+    .toLowerCase()
+    .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+    .replace(/[™®©]/g, '')
+    .replace(/[^a-z0-9]+/g, ' ')
+    .trim();
+}
+function ownersOf(g) {
+  const out = [];
+  [g.addedBy].concat(Array.isArray(g.addedByList) ? g.addedByList : []).forEach(n => {
+    if (n && !out.some(o => normName(o) === normName(n))) out.push(n);
+  });
+  return out;
+}
+function findExisting(name, appid) {
+  const n = normName(name);
+  return State.games.find(g =>
+    (appid && g.appid && String(g.appid) === String(appid)) || normName(g.name) === n
+  );
+}
+
+// ---------------------------------------------------------------
+// Jaquettes : vraie image Steam, avec repli sur un visuel généré
+// (dégradé + icône par genre) toujours présent en dessous.
 // ---------------------------------------------------------------
 const COVER_FAMILIES = [
-  { match: /fps|tir|shooter/, emoji: '🔫', c1: '#C9506B', c2: '#5C2233' },
-  { match: /rpg|r[oô]le/, emoji: '🗡️', c1: '#7C9CD4', c2: '#2A3762' },
-  { match: /party|soir[ée]e|ambiance/, emoji: '🎉', c1: '#F2A93B', c2: '#7A4E14' },
-  { match: /coop|[ée]quipe/, emoji: '🤝', c1: '#74A788', c2: '#28422F' },
-  { match: /indie/, emoji: '🌱', c1: '#5FB0AE', c2: '#1C4544' },
-  { match: /strat/, emoji: '♟️', c1: '#B385CC', c2: '#3C264C' },
-  { match: /simu/, emoji: '🛠️', c1: '#D48C56', c2: '#4E2F16' },
-  { match: /plate?forme|plat/, emoji: '🕹️', c1: '#F2A93B', c2: '#2A1A34' },
-  { match: /horreur|peur/, emoji: '👻', c1: '#4A2E5C', c2: '#130A18' },
-  { match: /sport|course|racing/, emoji: '⚽', c1: '#74A788', c2: '#193026' },
-  { match: /steam/, emoji: '🎮', c1: '#7C9CD4', c2: '#212B4E' },
-  { match: /puzzle|r[ée]flexion/, emoji: '🧩', c1: '#5FB0AE', c2: '#1C4544' },
+  { match: /fps|tir|shooter/, emoji: '🔫', c1: '#7A2E2A', c2: '#26100F' },
+  { match: /rpg|r[oô]le/, emoji: '🗡️', c1: '#3E5C86', c2: '#131C31' },
+  { match: /party|soir[ée]e|ambiance/, emoji: '🎉', c1: '#B58B3A', c2: '#38280E' },
+  { match: /coop|[ée]quipe/, emoji: '🤝', c1: '#4E7A6B', c2: '#11231E' },
+  { match: /indie/, emoji: '🌱', c1: '#5B8A86', c2: '#122624' },
+  { match: /strat/, emoji: '♟️', c1: '#6E4E86', c2: '#20132A' },
+  { match: /simu/, emoji: '🛠️', c1: '#9A6A3E', c2: '#2D1C0F' },
+  { match: /plate?forme|plat/, emoji: '🕹️', c1: '#A8863F', c2: '#1A1424' },
+  { match: /horreur|peur/, emoji: '👻', c1: '#3B2447', c2: '#0B0610' },
+  { match: /sport|course|racing/, emoji: '⚽', c1: '#4E7A55', c2: '#0F2015' },
+  { match: /puzzle|r[ée]flexion/, emoji: '🧩', c1: '#5B8A86', c2: '#122624' },
+];
+const HASH_FAMILIES = [
+  { emoji: '🎮', c1: '#3E5C86', c2: '#131C31' },
+  { emoji: '🎲', c1: '#7A2E2A', c2: '#26100F' },
+  { emoji: '🕹️', c1: '#6E4E86', c2: '#20132A' },
+  { emoji: '🎯', c1: '#4E7A6B', c2: '#11231E' },
+  { emoji: '⚔️', c1: '#9A6A3E', c2: '#2D1C0F' },
+  { emoji: '🧭', c1: '#5B8A86', c2: '#122624' },
 ];
 function hashNum(str) { let h=0; for (let i=0;i<str.length;i++) h=(h*31+str.charCodeAt(i))>>>0; return h; }
 function coverFamilyFor(game) {
   const tag = (game.tag || '').toLowerCase();
   const found = COVER_FAMILIES.find(f => f.match.test(tag));
   if (found) return found;
-  return COVER_FAMILIES[hashNum(game.name || 'x') % COVER_FAMILIES.length];
+  return HASH_FAMILIES[hashNum(game.name || 'x') % HASH_FAMILIES.length];
 }
 function coverHtml(game, opts) {
   opts = opts || {};
   const fam = coverFamilyFor(game);
   const seed = hashNum(game.name || 'x');
   const p1 = 15 + (seed % 55), p2 = 15 + ((seed >> 5) % 55);
-  const generated =
+  const base = '<div class="cover" style="background:linear-gradient(155deg,'+fam.c1+','+fam.c2+');">' +
     '<div class="cover-blob" style="left:'+p1+'%; top:-25%;"></div>' +
     '<div class="cover-blob" style="right:'+p2+'%; bottom:-30%;"></div>' +
-    '<span class="cover-emoji" style="'+(opts.small ? 'font-size:17px;filter:none;' : '')+'">'+fam.emoji+'</span>';
-  const base = '<div class="cover" style="background:linear-gradient(155deg,'+fam.c1+','+fam.c2+');">' + generated;
+    '<span class="cover-emoji'+(opts.small ? ' sm' : '')+'">'+fam.emoji+'</span>';
   if (game.coverUrl) {
-    // Image réelle Steam par-dessus le dégradé de secours ; si elle ne charge
-    // pas, on essaie l'image de repli, puis on la retire pour laisser voir
-    // le dégradé + l'icône déjà présents en dessous (jamais de case vide).
+    // Image par-dessus le visuel de secours ; si elle ne charge pas, on essaie
+    // l'image de repli, puis on la retire pour laisser voir le dégradé + l'icône.
     const fallback = game.coverFallback || '';
     return base +
-      '<img class="cover-img" src="'+game.coverUrl+'" alt="" ' +
+      '<img class="cover-img" src="'+escapeHtml(game.coverUrl)+'" alt="" loading="lazy" draggable="false" ' +
       'data-fallback="'+escapeHtml(fallback)+'" ' +
       'onerror="if(this.dataset.fallback && this.src!==this.dataset.fallback){this.src=this.dataset.fallback;}else{this.remove();}">' +
       '</div>';
@@ -299,9 +390,35 @@ async function fetchSteamCover(name) {
     const r = await fetch('/api/steam-cover?name=' + encodeURIComponent(name));
     if (!r.ok) return null;
     const data = await r.json();
-    if (data && data.found) return { image: data.image, fallbackImage: data.fallbackImage };
+    if (data && data.found) return { image: data.image, fallbackImage: data.fallbackImage, appid: data.appid };
     return null;
   } catch (e) { return null; }
+}
+async function fetchSteamLibrary(profile) {
+  let data = null, ok = false;
+  try {
+    const r = await fetch('/api/steam-library?profile=' + encodeURIComponent(profile));
+    ok = r.ok;
+    data = await r.json();
+  } catch (e) { throw { code: 'network' }; }
+  if (!ok || !data || data.error) throw { code: (data && data.error) || 'network' };
+  return data;
+}
+function steamErrorMessage(code) {
+  switch (code) {
+    case 'no_key': return 'Le site n\'a pas encore de clé Steam : ajoute la variable STEAM_API_KEY sur Vercel (voir le guide), puis redéploie.';
+    case 'bad_key': return 'La clé Steam configurée sur le site est refusée. Vérifie-la sur Vercel.';
+    case 'private': return 'Steam ne renvoie aucun jeu : ton profil (ou « Détails du jeu ») est probablement en privé. Passe-le en Public, puis réessaie.';
+    case 'not_found': return 'Profil introuvable. Vérifie le lien, le pseudo ou l\'ID.';
+    default: return 'Impossible de joindre Steam pour le moment. Réessaie dans un instant.';
+  }
+}
+async function runPool(tasks, n) {
+  let i = 0;
+  const workers = Array.from({ length: Math.min(n, tasks.length) }, async () => {
+    while (i < tasks.length) { const t = tasks[i++]; try { await t(); } catch (e) {} }
+  });
+  await Promise.all(workers);
 }
 
 // ---------------------------------------------------------------
@@ -316,6 +433,7 @@ let roomCode = localStorage.getItem('gn_room') || '';
 let myId = localStorage.getItem('gn_uid') || uid();
 localStorage.setItem('gn_uid', myId);
 let myName = localStorage.getItem('gn_name') || '';
+let mySteam = localStorage.getItem('gn_steam') || '';
 
 function roomRef() { return db.collection('rooms').doc(roomCode); }
 function gamesCol() { return roomRef().collection('games'); }
@@ -361,42 +479,77 @@ async function togglePlaying() {
   await playersCol().doc(myId).update({ playing: next });
 }
 
-async function addGame(name, tag) {
-  name = name.trim();
-  if (!name) return;
-  tag = (tag || 'Autre').trim() || 'Autre';
-  if (State.games.some(g => g.name.toLowerCase() === name.toLowerCase())) {
-    toast('« ' + name + ' » est déjà dans la bibliothèque.');
-    return;
+// Ajout de jeux (manuel, collé ou Steam) avec fusion des doublons :
+// si le jeu existe déjà, on ajoute simplement la personne à ceux qui le présentent.
+async function importGames(items) {
+  const FV = firebase.firestore.FieldValue;
+  const seen = new Set();
+  const pendingCovers = [];
+  let added = 0, merged = 0, already = 0;
+  let batch = db.batch(), ops = 0;
+  const flush = async () => { if (ops) { await batch.commit(); batch = db.batch(); ops = 0; } };
+
+  for (const it of items) {
+    const key = normName(it.name);
+    if (!key || seen.has(key)) continue;
+    seen.add(key);
+    const existing = findExisting(it.name, it.appid);
+    if (existing) {
+      if (ownersOf(existing).some(o => normName(o) === normName(myName))) { already++; continue; }
+      const upd = { addedByList: FV.arrayUnion(myName) };
+      if (!existing.coverUrl && it.image) { upd.coverUrl = it.image; upd.coverFallback = it.fallbackImage || null; }
+      if (!existing.appid && it.appid) upd.appid = it.appid;
+      batch.update(gamesCol().doc(existing.id), upd);
+      merged++;
+    } else {
+      const ref = gamesCol().doc();
+      batch.set(ref, {
+        name: it.name.trim(), tag: (it.tag || 'Autre').trim() || 'Autre',
+        addedBy: myName, addedByList: [myName],
+        ts: Date.now() + added,
+        coverUrl: it.image || null, coverFallback: it.fallbackImage || null, appid: it.appid || null,
+      });
+      if (!it.image) pendingCovers.push({ ref, name: it.name });
+      added++;
+    }
+    ops++;
+    if (ops >= 400) await flush();
   }
-  const ref = await gamesCol().add({ name, tag, addedBy: myName, ts: Date.now(), coverUrl: null });
-  const found = await fetchSteamCover(name);
-  if (found) {
-    try { await ref.update({ coverUrl: found.image, coverFallback: found.fallbackImage }); } catch (e) {}
+  await flush();
+
+  // Jeux sans jaquette (ajout manuel / liste collée) : on la cherche en arrière-plan.
+  if (pendingCovers.length) {
+    runPool(pendingCovers.map(p => async () => {
+      const found = await fetchSteamCover(p.name);
+      if (found) await p.ref.update({ coverUrl: found.image, coverFallback: found.fallbackImage, appid: found.appid || null });
+    }), 4);
   }
+  return { added, merged, already };
+}
+function summarizeImport(r) {
+  const parts = [];
+  if (r.added) parts.push(r.added + ' nouveau' + (r.added > 1 ? 'x' : ''));
+  if (r.merged) parts.push(r.merged + ' déjà présent' + (r.merged > 1 ? 's' : '') + ' (tu es ajouté·e comme co-présentateur·rice)');
+  if (r.already) parts.push(r.already + ' déjà à ton nom');
+  return parts.length ? 'Import terminé : ' + parts.join(', ') + '.' : 'Rien à ajouter.';
 }
 
-async function addGamesBulk(list) {
-  const existing = new Set(State.games.map(g => g.name.toLowerCase()));
-  const toAdd = list.filter(g => !existing.has(g.name.toLowerCase()));
-  if (!toAdd.length) { toast('Rien de nouveau à ajouter.'); return; }
-  toast('Ajout de ' + toAdd.length + ' jeu(x)…');
-  for (const g of toAdd) {
-    try {
-      const ref = await gamesCol().add({ name: g.name, tag: g.tag || 'Steam', addedBy: myName, ts: Date.now(), coverUrl: null });
-      fetchSteamCover(g.name).then(found => {
-        if (found) ref.update({ coverUrl: found.image, coverFallback: found.fallbackImage }).catch(() => {});
-      });
-    } catch (e) {}
-  }
-  toast(toAdd.length + ' jeu(x) ajouté(s), recherche des jaquettes en cours…');
+async function addGame(name, tag) {
+  if (!name.trim()) return;
+  const r = await importGames([{ name, tag }]);
+  if (r.added) toast('« ' + name.trim() + ' » ajouté.');
+  else if (r.merged) toast('« ' + name.trim() + ' » existait déjà : tu apparais maintenant parmi ceux qui le présentent.');
+  else toast('« ' + name.trim() + ' » est déjà à ton nom.');
 }
 
 async function removeGame(id) { try { await gamesCol().doc(id).delete(); } catch (e) {} }
-
 async function clearAllGames() {
   const ids = State.games.map(g => g.id);
-  for (const id of ids) { try { await gamesCol().doc(id).delete(); } catch (e) {} }
+  for (let i = 0; i < ids.length; i += 400) {
+    const b = db.batch();
+    ids.slice(i, i + 400).forEach(id => b.delete(gamesCol().doc(id)));
+    try { await b.commit(); } catch (e) {}
+  }
   toast('Bibliothèque vidée.');
 }
 
@@ -423,7 +576,7 @@ function matchStats() {
 }
 
 // ---------------------------------------------------------------
-// Import Steam (nettoyage par règles, sans IA)
+// Import par copier-coller (nettoyage par règles, sans IA)
 // ---------------------------------------------------------------
 const MONTHS = 'janv|f[ée]vr|mars|avr|mai|juin|juil|ao[uû]t|sept|oct|nov|d[ée]c|jan|feb|mar|apr|jun|jul|aug|sep|nov|dec';
 const JUNK_PATTERNS = [
@@ -458,6 +611,7 @@ function cleanupPastedList(raw) {
   });
   return out;
 }
+const NOISE_GAME_RX = /\b(demo|playtest|beta test|dedicated server|sdk|soundtrack|benchmark)\b/i;
 
 // ---------------------------------------------------------------
 // Rendu
@@ -487,13 +641,15 @@ function renderHeader() {
   row.appendChild(tgl);
 }
 
-function renderMain() {
+function renderMain(force) {
   const main = document.getElementById('main');
   document.querySelectorAll('.tab').forEach(t => t.classList.toggle('active', t.dataset.tab === currentTab));
   if (currentTab === 'deck' && deckAnimating) return;
+  if (force || main.dataset.view !== currentTab) { main.innerHTML = ''; main.dataset.view = ''; main.dataset.sig = ''; }
   if (currentTab === 'deck') renderDeck(main);
   else if (currentTab === 'library') renderLibrary(main);
   else renderMatches(main);
+  main.dataset.view = currentTab;
 }
 function renderAll() { renderHeader(); renderMain(); }
 onChange(renderAll);
@@ -502,12 +658,18 @@ function infoBox(title, body) {
   const d = document.createElement('div'); d.className = 'info-box';
   d.innerHTML = '<strong>' + title + '</strong><br>' + body; return d;
 }
+function presentedBy(g) { const o = ownersOf(g); return o.length ? o.join(', ') : 'quelqu\'un'; }
 
 function renderDeck(main) {
-  main.innerHTML = '';
   const cards = myUnswiped();
-  if (!State.games.length) { main.appendChild(infoBox('Bibliothèque vide.', 'Ajoute vos jeux dans l\'onglet <strong>Bibliothèque</strong> pour commencer à swiper.')); return; }
-  if (!cards.length) { main.appendChild(infoBox('Tout est swipé !', (myName ? myName : '') + ', tu as donné ton avis sur tous les jeux. Va voir l\'onglet <strong>Matchs</strong>, ou ajoute d\'autres jeux.')); return; }
+  // Évite de reconstruire (et de rejouer l'animation / couper un glissement en cours)
+  // quand une mise à jour Firestore ne change rien aux cartes affichées.
+  const sig = cards.slice(0, 3).map(g => [g.id, g.name, g.tag, g.coverUrl ? 1 : 0, presentedBy(g)].join(':')).join('|') + '#' + State.games.length + '/' + cards.length + '/' + State.swipes.length;
+  if (main.dataset.view === 'deck' && main.dataset.sig === sig && main.children.length) return;
+  main.dataset.sig = sig;
+  main.innerHTML = '';
+  if (!State.games.length) { main.appendChild(infoBox('Bibliothèque vide', 'Ajoute vos jeux dans l\'onglet <em>Bibliothèque</em> pour commencer à swiper.')); return; }
+  if (!cards.length) { main.appendChild(infoBox('Tout est swipé', (myName ? myName + ', t' : 'T') + 'u as donné ton avis sur tous les jeux. Va voir l\'onglet <em>Matchs</em>, ou ajoute d\'autres jeux.')); return; }
 
   const progress = document.createElement('div'); progress.className = 'deck-progress';
   progress.textContent = (State.games.length - cards.length) + ' / ' + State.games.length + ' jeux vus';
@@ -518,29 +680,33 @@ function renderDeck(main) {
   wrap.appendChild(stack);
 
   const visible = cards.slice(0, 3);
-  // On construit de la plus lointaine à la plus proche : la dernière carte
-  // ajoutée (donc celle du dessus) est visible[0], le même jeu que le titre
-  // affiché dessous et que les boutons ✕/♥.
+  // Construit de la plus lointaine à la plus proche : la dernière carte ajoutée
+  // (celle du dessus) est visible[0], le même jeu que le titre et les boutons.
   for (let depth = visible.length - 1; depth >= 0; depth--) {
     const g = visible[depth];
     const card = document.createElement('div');
     card.className = 'swipe-card' + (depth === 0 ? ' card-enter' : '');
     card.style.transform = 'scale(' + (1 - depth * 0.045) + ') translateY(' + (depth * 10) + 'px)';
     card.style.zIndex = String(10 - depth);
-    card.innerHTML = coverHtml(g) + '<div class="stamp yes">OUI</div><div class="stamp no">NON</div>';
-    if (depth === 0) attachSwipeGestures(card, g.id);
+    card.innerHTML = coverHtml(g) +
+      '<i class="orn tl"></i><i class="orn tr"></i><i class="orn bl"></i><i class="orn br"></i>' +
+      '<div class="stamp yes">OUI</div><div class="stamp no">NON</div>';
+    if (depth === 0) {
+      attachSwipeGestures(card, g.id);
+      card.addEventListener('animationend', () => card.classList.remove('card-enter'), { once: true });
+    }
     stack.appendChild(card);
   }
 
   const top = cards[0];
   const caption = document.createElement('div'); caption.className = 'card-caption';
-  caption.innerHTML = '<div class="tag">' + escapeHtml(top.tag || 'Jeu') + '</div><div class="name">' + escapeHtml(top.name) + '</div><div class="added-by">Ajouté par ' + escapeHtml(top.addedBy || 'quelqu\'un') + '</div>';
+  caption.innerHTML = '<div class="tag">' + escapeHtml(top.tag || 'Jeu') + '</div><div class="name">' + escapeHtml(top.name) + '</div><div class="added-by">Présenté par : ' + escapeHtml(presentedBy(top)) + '</div>';
   wrap.appendChild(caption);
 
   const actions = document.createElement('div'); actions.className = 'deck-actions';
-  const noBtn = document.createElement('button'); noBtn.className = 'round-btn no'; noBtn.textContent = '✕';
+  const noBtn = document.createElement('button'); noBtn.className = 'round-btn no'; noBtn.textContent = '✕'; noBtn.setAttribute('aria-label', 'Non');
   noBtn.onclick = () => animateDecision(stack.lastElementChild, cards[0].id, false);
-  const yesBtn = document.createElement('button'); yesBtn.className = 'round-btn yes'; yesBtn.textContent = '♥';
+  const yesBtn = document.createElement('button'); yesBtn.className = 'round-btn yes'; yesBtn.textContent = '♥'; yesBtn.setAttribute('aria-label', 'Oui');
   yesBtn.onclick = () => animateDecision(stack.lastElementChild, cards[0].id, true);
   actions.appendChild(noBtn); actions.appendChild(yesBtn);
   main.appendChild(wrap); main.appendChild(actions);
@@ -561,11 +727,13 @@ function animateDecision(topCard, gameId, liked) {
 function attachSwipeGestures(card, gameId) {
   let startX=0, startY=0, dx=0, dragging=false;
   const stampYes = card.querySelector('.stamp.yes'), stampNo = card.querySelector('.stamp.no');
-  function onDown(e) { dragging = true; const p = e.touches ? e.touches[0] : e; startX=p.clientX; startY=p.clientY; card.style.transition='none'; }
+  function onDown(e) {
+    dragging = true; startX = e.clientX; startY = e.clientY; dx = 0; card.style.transition = 'none';
+    try { card.setPointerCapture(e.pointerId); } catch (err) {}
+  }
   function onMove(e) {
     if (!dragging) return;
-    const p = e.touches ? e.touches[0] : e;
-    dx = p.clientX - startX; const dy = p.clientY - startY; const rot = dx/18;
+    dx = e.clientX - startX; const dy = e.clientY - startY; const rot = dx/18;
     card.style.transform = 'translate('+dx+'px,'+dy+'px) rotate('+rot+'deg)';
     const t = Math.min(Math.abs(dx)/90, 1);
     if (dx > 0) { stampYes.style.opacity=t; stampNo.style.opacity=0; } else { stampNo.style.opacity=t; stampYes.style.opacity=0; }
@@ -591,19 +759,32 @@ function attachSwipeGestures(card, gameId) {
   card.addEventListener('pointerdown', onDown);
   card.addEventListener('pointermove', onMove);
   card.addEventListener('pointerup', onUp);
-  card.addEventListener('pointerleave', onUp);
+  card.addEventListener('pointercancel', onUp);
+  card.addEventListener('dragstart', e => e.preventDefault());
 }
 
-function setLibraryView(v) { libraryView = v; localStorage.setItem('gn_library_view', v); renderMain(); }
+// Le formulaire (ajout, lien Steam, collage) vit dans un élément persistant : il survit
+// aux mises à jour Firestore, donc ce qu'on est en train de saisir n'est jamais effacé.
+const libraryFormZone = document.createElement('div');
+libraryFormZone.style.marginTop = '8px';
+
+function setLibraryView(v) { libraryView = v; localStorage.setItem('gn_library_view', v); renderMain(true); }
 
 function renderLibrary(main) {
-  main.innerHTML = '';
-  const btnRow = document.createElement('div'); btnRow.className = 'btn-row';
-  const addBtn = document.createElement('button'); addBtn.className = 'btn btn-primary'; addBtn.textContent = '+ Ajouter un jeu';
-  const importBtn = document.createElement('button'); importBtn.className = 'btn btn-ghost'; importBtn.textContent = '📋 Importer depuis Steam';
-  btnRow.appendChild(addBtn); btnRow.appendChild(importBtn); main.appendChild(btnRow);
+  // Déjà affichée : on ne rafraîchit que le compteur et la liste (garde le focus et le formulaire).
+  if (main.dataset.view === 'library' && main.querySelector('#libList')) { refreshLibraryList(main); return; }
 
-  const formZone = document.createElement('div'); formZone.style.marginTop = '10px'; main.appendChild(formZone);
+  const btnRow = document.createElement('div'); btnRow.className = 'btn-row';
+  const addBtn = document.createElement('button'); addBtn.className = 'btn btn-ghost'; addBtn.textContent = '+ Ajouter un jeu';
+  const steamBtn = document.createElement('button'); steamBtn.className = 'btn btn-primary'; steamBtn.textContent = 'Lier mon compte Steam';
+  btnRow.appendChild(addBtn); btnRow.appendChild(steamBtn); main.appendChild(btnRow);
+
+  const pasteLink = document.createElement('button'); pasteLink.className = 'link-btn'; pasteLink.textContent = 'ou coller une liste copiée depuis Steam';
+  pasteLink.style.marginTop = '4px';
+  main.appendChild(pasteLink);
+
+  const formZone = libraryFormZone;
+  main.appendChild(formZone);
 
   addBtn.onclick = () => {
     formZone.innerHTML = '';
@@ -617,43 +798,46 @@ function renderLibrary(main) {
       addGame(name, tag); formZone.innerHTML = '';
     };
   };
-  importBtn.onclick = () => {
-    formZone.innerHTML = '';
-    const f = document.createElement('div'); f.className = 'inline-form';
-    f.innerHTML = '<textarea id="pasteBox" placeholder="Colle ici la liste copiée depuis ta page Steam."></textarea><div class="btn-row"><button class="btn btn-ghost" id="pasteCancel">Annuler</button><button class="btn btn-primary" id="pasteGo">Analyser</button></div>';
-    formZone.appendChild(f);
-    document.getElementById('pasteCancel').onclick = () => { formZone.innerHTML = ''; };
-    document.getElementById('pasteGo').onclick = () => showImportPreview(formZone, document.getElementById('pasteBox').value);
-  };
+  steamBtn.onclick = () => showSteamLink(formZone);
+  pasteLink.onclick = () => showPasteImport(formZone);
 
   const titleRow = document.createElement('div');
-  titleRow.style.cssText = 'display:flex;align-items:center;justify-content:space-between;margin-top:18px;gap:10px;';
-  const title = document.createElement('div'); title.className = 'section-title'; title.style.margin = '0';
-  title.textContent = 'Bibliothèque (' + State.games.length + ')';
+  titleRow.style.cssText = 'display:flex;align-items:center;justify-content:space-between;margin-top:20px;gap:10px;';
+  const title = document.createElement('div'); title.className = 'section-title'; title.id = 'libTitle';
   titleRow.appendChild(title);
   const rightSide = document.createElement('div'); rightSide.style.cssText = 'display:flex;align-items:center;gap:10px;';
   const toggle = document.createElement('div'); toggle.className = 'view-toggle';
-  toggle.innerHTML = '<button data-v="list" title="Vue liste">☰</button><button data-v="grid" title="Vue grille">⊞</button>';
+  toggle.innerHTML = '<button data-v="list" title="Vue liste" aria-label="Vue liste">☰</button><button data-v="grid" title="Vue grille" aria-label="Vue grille">⊞</button>';
   toggle.querySelectorAll('button').forEach(b => { b.classList.toggle('active', b.dataset.v === libraryView); b.onclick = () => setLibraryView(b.dataset.v); });
   rightSide.appendChild(toggle);
-  if (State.games.length) {
-    const clearAllBtn = document.createElement('button'); clearAllBtn.className='g-del'; clearAllBtn.style.cssText='font-size:12px;color:var(--pass);'; clearAllBtn.textContent = '🗑'; clearAllBtn.title = 'Tout supprimer';
-    clearAllBtn.onclick = () => showConfirm('Supprimer les ' + State.games.length + ' jeux de la bibliothèque ? Action irréversible.', 'Tout supprimer', clearAllGames);
-    rightSide.appendChild(clearAllBtn);
-  }
+  const clearAllBtn = document.createElement('button'); clearAllBtn.className = 'icon-btn danger'; clearAllBtn.id = 'libClear'; clearAllBtn.innerHTML = ICON_TRASH; clearAllBtn.title = 'Tout supprimer'; clearAllBtn.setAttribute('aria-label', 'Tout supprimer');
+  clearAllBtn.onclick = () => showConfirm('Supprimer les ' + State.games.length + ' jeux de la bibliothèque ? Action irréversible.', 'Tout supprimer', clearAllGames);
+  rightSide.appendChild(clearAllBtn);
   titleRow.appendChild(rightSide); main.appendChild(titleRow);
 
-  if (!State.games.length) { main.appendChild(infoBox('Aucun jeu pour l\'instant', 'Ajoute-en un ou importe ta bibliothèque Steam ci-dessus.')); return; }
+  const listHolder = document.createElement('div'); listHolder.id = 'libList'; main.appendChild(listHolder);
+  refreshLibraryList(main);
+}
+
+function refreshLibraryList(main) {
+  main.querySelector('#libTitle').textContent = 'Bibliothèque · ' + State.games.length;
+  main.querySelector('#libClear').style.display = State.games.length ? '' : 'none';
+  const holder = main.querySelector('#libList');
+  holder.innerHTML = '';
+  if (!State.games.length) { const b = infoBox('Aucun jeu pour l\'instant', 'Ajoute-en un, lie ton compte Steam ou colle une liste.'); b.style.marginTop = '12px'; holder.appendChild(b); return; }
   const sorted = State.games.slice().sort((a,b) => a.name.localeCompare(b.name));
-  main.appendChild(libraryView === 'grid' ? buildGameGrid(sorted) : buildGameList(sorted));
+  holder.appendChild(libraryView === 'grid' ? buildGameGrid(sorted) : buildGameList(sorted));
 }
 
 function buildGameList(games) {
   const list = document.createElement('div'); list.className = 'game-list';
   games.forEach(g => {
     const row = document.createElement('div'); row.className = 'game-row';
-    row.innerHTML = '<div class="g-cover">'+coverHtml(g,{small:true})+'</div><span class="g-name">'+escapeHtml(g.name)+'</span><span class="g-tag">'+escapeHtml(g.tag||'Autre')+'</span><button class="g-del" title="Retirer">🗑</button>';
-    row.querySelector('.g-del').onclick = () => showConfirm('Retirer « '+g.name+' » de la bibliothèque ?', 'Retirer', () => removeGame(g.id));
+    row.innerHTML = '<div class="g-cover">'+coverHtml(g,{small:true})+'</div>' +
+      '<div class="g-main"><div class="g-name">'+escapeHtml(g.name)+'</div><div class="g-by">Par '+escapeHtml(presentedBy(g))+'</div></div>' +
+      '<span class="g-tag">'+escapeHtml(g.tag||'Autre')+'</span>' +
+      '<button class="icon-btn" title="Retirer" aria-label="Retirer">'+ICON_TRASH+'</button>';
+    row.querySelector('.icon-btn').onclick = () => showConfirm('Retirer « '+g.name+' » de la bibliothèque ?', 'Retirer', () => removeGame(g.id));
     list.appendChild(row);
   });
   return list;
@@ -662,13 +846,104 @@ function buildGameGrid(games) {
   const grid = document.createElement('div'); grid.className = 'game-grid';
   games.forEach(g => {
     const item = document.createElement('div'); item.className = 'grid-item';
-    item.innerHTML = '<div class="grid-cover">'+coverHtml(g,{small:true})+'<button class="grid-del" title="Retirer">✕</button></div><div class="grid-name">'+escapeHtml(g.name)+'</div><div class="grid-tag">'+escapeHtml(g.tag||'Autre')+'</div>';
+    item.innerHTML = '<div class="grid-cover">'+coverHtml(g,{small:true})+'<button class="grid-del" title="Retirer" aria-label="Retirer">✕</button></div>' +
+      '<div class="grid-name">'+escapeHtml(g.name)+'</div><div class="grid-by">'+escapeHtml(presentedBy(g))+'</div>';
     item.querySelector('.grid-del').onclick = e => { e.stopPropagation(); showConfirm('Retirer « '+g.name+' » de la bibliothèque ?', 'Retirer', () => removeGame(g.id)); };
     grid.appendChild(item);
   });
   return grid;
 }
 
+// --- Lien direct avec Steam ---
+function showSteamLink(zone) {
+  zone.innerHTML = '';
+  const f = document.createElement('div'); f.className = 'inline-form';
+  f.innerHTML =
+    '<div class="hint">Colle le lien de ton profil Steam (ou ton pseudo, ou ton ID à 17 chiffres). Ton profil doit avoir <b>« Détails du jeu »</b> réglé sur <b>Public</b> : Steam › Profil › Modifier le profil › Paramètres de confidentialité.</div>' +
+    '<input type="text" id="steamInput" placeholder="steamcommunity.com/id/ton-pseudo" autocapitalize="off" autocorrect="off" spellcheck="false">' +
+    '<div class="btn-row"><button class="btn btn-ghost" id="steamCancel">Annuler</button><button class="btn btn-primary" id="steamGo">Récupérer mes jeux</button></div>' +
+    '<div class="hint" id="steamStatus"></div>';
+  zone.appendChild(f);
+  const input = f.querySelector('#steamInput'), go = f.querySelector('#steamGo'), status = f.querySelector('#steamStatus');
+  input.value = mySteam;
+  f.querySelector('#steamCancel').onclick = () => { zone.innerHTML = ''; };
+  const run = async () => {
+    const val = input.value.trim();
+    if (!val) { toast('Colle le lien de ton profil Steam.'); return; }
+    go.disabled = true; status.textContent = 'Connexion à Steam…';
+    try {
+      const data = await fetchSteamLibrary(val);
+      mySteam = val; localStorage.setItem('gn_steam', val);
+      playersCol().doc(myId).set({ steamId: data.steamid }, { merge: true }).catch(() => {});
+      showSteamPreview(zone, data.games);
+    } catch (e) {
+      status.textContent = steamErrorMessage(e && e.code);
+      go.disabled = false;
+    }
+  };
+  go.onclick = run;
+  input.addEventListener('keydown', e => { if (e.key === 'Enter') run(); });
+}
+
+function hoursLabel(min) {
+  if (!min) return '';
+  if (min < 60) return min + ' min';
+  return Math.round(min / 60) + ' h';
+}
+function showSteamPreview(zone, games) {
+  zone.innerHTML = '';
+  const box = document.createElement('div'); box.className = 'inline-form';
+  const head = document.createElement('div'); head.className = 'hint';
+  head.innerHTML = '<b>' + games.length + '</b> jeux trouvés sur ton compte, triés par temps de jeu. Les démos, playtests et outils sont décochés.';
+  box.appendChild(head);
+
+  const tools = document.createElement('div'); tools.className = 'import-tools';
+  tools.innerHTML = '<button class="btn btn-ghost btn-sm" data-a="all">Tout</button><button class="btn btn-ghost btn-sm" data-a="none">Aucun</button><button class="btn btn-ghost btn-sm" data-a="top50">Top 50</button>';
+  box.appendChild(tools);
+
+  const preview = document.createElement('div'); preview.className = 'import-preview';
+  games.forEach((g, i) => {
+    const row = document.createElement('label'); row.className = 'import-row';
+    const checked = !NOISE_GAME_RX.test(g.name);
+    row.innerHTML = '<input type="checkbox" data-i="'+i+'"'+(checked ? ' checked' : '')+'><span class="ir-name">'+escapeHtml(g.name)+'</span><span class="ir-meta">'+hoursLabel(g.playtime)+'</span>';
+    preview.appendChild(row);
+  });
+  box.appendChild(preview);
+
+  const confirmBtn = document.createElement('button'); confirmBtn.className = 'btn btn-primary';
+  box.appendChild(confirmBtn);
+  zone.appendChild(box);
+
+  const boxes = () => Array.from(preview.querySelectorAll('input[type=checkbox]'));
+  const refresh = () => { const n = boxes().filter(b => b.checked).length; confirmBtn.textContent = 'Ajouter la sélection (' + n + ')'; confirmBtn.disabled = !n; };
+  preview.addEventListener('change', refresh);
+  tools.addEventListener('click', e => {
+    const a = e.target.dataset && e.target.dataset.a; if (!a) return;
+    boxes().forEach((b, i) => { b.checked = a === 'all' ? true : a === 'none' ? false : (i < 50 && !NOISE_GAME_RX.test(games[i].name)); });
+    refresh();
+  });
+  refresh();
+
+  confirmBtn.onclick = async () => {
+    const chosen = boxes().filter(b => b.checked).map(b => games[+b.dataset.i]);
+    confirmBtn.disabled = true; confirmBtn.textContent = 'Import en cours…';
+    try {
+      const r = await importGames(chosen.map(g => ({ name: g.name, tag: 'Steam', appid: g.appid, image: g.image, fallbackImage: g.fallbackImage })));
+      toast(summarizeImport(r));
+      zone.innerHTML = '';
+    } catch (e) { toast('L\'import a échoué. Réessaie.'); confirmBtn.disabled = false; refresh(); }
+  };
+}
+
+// --- Import par copier-coller (solution de secours) ---
+function showPasteImport(zone) {
+  zone.innerHTML = '';
+  const f = document.createElement('div'); f.className = 'inline-form';
+  f.innerHTML = '<textarea id="pasteBox" placeholder="Colle ici la liste copiée depuis ta page Steam."></textarea><div class="btn-row"><button class="btn btn-ghost" id="pasteCancel">Annuler</button><button class="btn btn-primary" id="pasteGo">Analyser</button></div>';
+  zone.appendChild(f);
+  document.getElementById('pasteCancel').onclick = () => { zone.innerHTML = ''; };
+  document.getElementById('pasteGo').onclick = () => showImportPreview(zone, document.getElementById('pasteBox').value);
+}
 function showImportPreview(zone, raw) {
   const candidates = cleanupPastedList(raw);
   zone.innerHTML = '';
@@ -677,16 +952,17 @@ function showImportPreview(zone, raw) {
   const preview = document.createElement('div'); preview.className = 'import-preview';
   candidates.forEach((name, i) => {
     const row = document.createElement('label'); row.className = 'import-row';
-    row.innerHTML = '<input type="checkbox" checked data-i="'+i+'"><span>'+escapeHtml(name)+'</span>';
+    row.innerHTML = '<input type="checkbox" checked data-i="'+i+'"><span class="ir-name">'+escapeHtml(name)+'</span>';
     preview.appendChild(row);
   });
   box.appendChild(preview);
   const confirmBtn = document.createElement('button'); confirmBtn.className = 'btn btn-primary'; confirmBtn.textContent = 'Ajouter la sélection ('+candidates.length+')';
-  confirmBtn.style.marginTop = '4px';
-  confirmBtn.onclick = () => {
+  confirmBtn.onclick = async () => {
     const checked = Array.from(preview.querySelectorAll('input:checked')).map(cb => ({ name: candidates[+cb.dataset.i], tag: 'Steam' }));
     if (!checked.length) { toast('Coche au moins un jeu.'); return; }
-    addGamesBulk(checked); zone.innerHTML = '';
+    confirmBtn.disabled = true; confirmBtn.textContent = 'Import en cours…';
+    const r = await importGames(checked);
+    toast(summarizeImport(r)); zone.innerHTML = '';
   };
   box.appendChild(confirmBtn);
   zone.appendChild(box);
@@ -694,14 +970,17 @@ function showImportPreview(zone, raw) {
 
 function renderMatches(main) {
   main.innerHTML = '';
-  const title = document.createElement('div'); title.className = 'section-title'; title.textContent = 'Matchs de ce soir';
+  const title = document.createElement('div'); title.className = 'section-title ornate'; title.textContent = 'Matchs de ce soir';
   main.appendChild(title);
   const stats = matchStats();
   if (!stats.length) { main.appendChild(infoBox('Pas encore de match', 'Dès que plusieurs d\'entre vous auront aimé le même jeu, il apparaîtra ici.')); return; }
   const list = document.createElement('div'); list.className = 'match-list';
   stats.forEach(m => {
     const row = document.createElement('div'); row.className = 'match-row' + (m.full ? ' full' : '');
-    row.innerHTML = '<div class="m-top"><span class="m-name">'+escapeHtml(m.game.name)+'</span>'+(m.full ? '<span class="m-badge">MATCH 🎉</span>' : '')+'</div><div class="m-score">'+m.count+' / '+m.denom+' aiment ce jeu ce soir</div>';
+    const names = m.likers.map(l => l.playerName).filter(Boolean).join(', ');
+    row.innerHTML = '<div class="g-cover" style="width:44px;height:44px;">'+coverHtml(m.game,{small:true})+'</div>' +
+      '<div class="m-body"><div class="m-name">'+escapeHtml(m.game.name)+'</div><div class="m-score">'+m.count+' sur '+m.denom+' — '+escapeHtml(names)+'</div></div>' +
+      (m.full ? '<span class="m-badge">MATCH</span>' : '');
     list.appendChild(row);
   });
   main.appendChild(list);
@@ -721,11 +1000,12 @@ function showGate() {
   const gate = document.createElement('div'); gate.className = 'gate'; gate.id = 'gate';
   gate.innerHTML =
     '<div class="box">' +
-    '<h2>Salle de jeu 🎮</h2>' +
-    '<p>Entre le code de salle de tes amis pour les rejoindre, ou laisse vide pour en créer une nouvelle.</p>' +
-    '<input type="text" id="gateCode" placeholder="Code de salle (ex : AB12C)" maxlength="8" style="text-transform:uppercase;">' +
+    '<div class="brand-sub">Ce soir · entre amis</div>' +
+    '<h2>Rejoindre la salle</h2>' +
+    '<p>Entre le code de tes amis pour les rejoindre, ou laisse vide pour ouvrir une nouvelle salle.</p>' +
+    '<input type="text" id="gateCode" placeholder="Code de salle (ex : AB12C)" maxlength="8" style="text-transform:uppercase;" autocapitalize="characters">' +
     '<input type="text" id="gateName" placeholder="Ton prénom">' +
-    '<button class="btn btn-primary" id="gateGo" style="width:100%;">Rejoindre / créer la salle</button>' +
+    '<button class="btn btn-primary" id="gateGo" style="width:100%;">Entrer</button>' +
     '</div>';
   document.body.appendChild(gate);
   document.getElementById('gateGo').onclick = () => {
