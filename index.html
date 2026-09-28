@@ -17,7 +17,7 @@
 
 <style id="base">
   /* ===== Base commune : structure et animations partagées par tous les thèmes ===== */
-  :root { --extra-off: 0px; }
+  :root { --extra-off: 0px; --green: #2E9E6B; --red: #D64545; }
   .shell { display: flex; justify-content: center; gap: 28px; min-height: 100%; }
   .shell .app { flex: 0 1 520px; width: 100%; max-width: 520px; margin: 0; }
   .info-side { display: none; }
@@ -31,6 +31,30 @@
     :root { --extra-off: 46px; }
     .card-caption .desc:not(:empty) { display: -webkit-box; }
   }
+
+  /* Filtre « multijoueur uniquement » dans l'aperçu d'import Steam */
+  .mp-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin: -2px 0 2px; }
+  .player { position: relative; }
+  .kick-btn { position: absolute; top: -6px; right: -4px; z-index: 2; width: 17px; height: 17px; border-radius: 50%; border: none; background: var(--red); color: #fff; font-size: 9px; line-height: 1; display: flex; align-items: center; justify-content: center; cursor: pointer; padding: 0; }
+  .mp-row label { display: flex; align-items: center; gap: 7px; font-size: 13.5px; cursor: pointer; }
+  .mp-row input[type=checkbox] { width: 15px; height: 15px; accent-color: var(--accent, var(--green)); flex: none; }
+  .import-row .ir-mp { flex: none; font-size: 12px; opacity: 0.85; min-width: 1.4em; text-align: center; }
+
+  /* Tri / regroupement de la bibliothèque */
+  .sort-select { font: inherit; font-size: 12.5px; font-weight: 600; padding: 6px 10px; border-radius: 8px; border: 1px solid var(--line, var(--border, currentColor)); background: var(--surface, var(--bg-elevated, transparent)); color: inherit; cursor: pointer; }
+  .lib-group { margin-top: 16px; opacity: 0.85; }
+  .lib-group:first-child { margin-top: 4px; }
+  .brand h1, .brand-sub { overflow: hidden; text-overflow: ellipsis; }
+
+  /* Badge multijoueur / solo et bloc prix dans la fiche d'un jeu */
+  .info-mp { display: inline-block; font-size: 12px; font-weight: 700; padding: 3px 9px; border-radius: 999px; margin-bottom: 10px; }
+  .info-mp.yes { color: #fff; background: var(--green); }
+  .info-mp.no { color: #fff; background: var(--red); }
+  .price-btn { display: inline-flex; align-items: center; gap: 6px; margin: 2px 0 12px; padding: 8px 12px; border-radius: 8px; border: 1px solid var(--line, var(--border, currentColor)); background: transparent; color: inherit; font: inherit; font-weight: 600; font-size: 13px; cursor: pointer; }
+  .price-loading, .price-none { font-size: 13px; opacity: 0.7; margin: 0 0 12px; }
+  .price-result { display: flex; align-items: center; gap: 8px; margin: 2px 0 2px; padding: 9px 12px; border-radius: 8px; background: var(--green); color: #fff; text-decoration: none; font-weight: 700; font-size: 13.5px; }
+  .price-result .price-off { font-weight: 700; opacity: 0.9; }
+  .price-approx { font-size: 11.5px; opacity: 0.65; margin: 4px 0 12px; }
 
   /* Transition entre les pages : glissement + fondu, dans le sens de l'onglet visé */
   @keyframes pageInR { from { opacity: 0; transform: translateX(var(--page-shift, 16px)); } to { opacity: 1; transform: none; } }
@@ -770,7 +794,7 @@
       <div class="brand-sub"></div>
       <h1>À quoi jouer ?</h1>
     </div>
-    <div class="head-right"><button class="theme-btn" id="themeBtn" type="button" title="Changer de thème" aria-label="Changer de thème">◐</button><div class="room-pill" id="roomPill" title="Copier le code de la salle">Salle <b id="roomCodeLabel">----</b></div></div>
+    <div class="head-right"><button class="theme-btn" id="themeBtn" type="button" title="Changer de thème" aria-label="Changer de thème">◐</button><div class="room-pill" id="roomPill" title="Copier le code de la salle">Salle <b id="roomCodeLabel">----</b></div><button class="theme-btn" id="leaveBtn" type="button" title="Quitter la salle" aria-label="Quitter la salle">🚪</button></div>
   </header>
   <div class="rule">◆</div>
   <div class="hazard"></div>
@@ -883,11 +907,22 @@ function normName(s) {
     .replace(/[^a-z0-9]+/g, ' ')
     .trim();
 }
-function ownersOf(g) {
+function addedOwnersOf(g) {
   const out = [];
-  [g.addedBy].concat(Array.isArray(g.addedByList) ? g.addedByList : []).forEach(n => {
-    if (n && !out.some(o => normName(o) === normName(n))) out.push(n);
-  });
+  const add = n => { if (n && !out.some(o => normName(o) === normName(n))) out.push(n); };
+  add(g.addedBy);
+  (Array.isArray(g.addedByList) ? g.addedByList : []).forEach(add);
+  return out;
+}
+function ownersOf(g) {
+  const out = addedOwnersOf(g);
+  // Possession réelle : joueurs ayant lié leur Steam et possédant cet appid,
+  // même s'ils ne l'ont pas personnellement ajouté à la bibliothèque.
+  if (g.appid) {
+    State.players.forEach(p => {
+      if (Array.isArray(p.ownedAppIds) && p.ownedAppIds.includes(g.appid) && !out.some(o => normName(o) === normName(p.name))) out.push(p.name);
+    });
+  }
   return out;
 }
 function findExisting(name, appid) {
@@ -969,6 +1004,13 @@ async function fetchSteamLibrary(profile) {
   if (!ok || !data || data.error) throw { code: (data && data.error) || 'network' };
   return data;
 }
+async function fetchSteamInfo(appid) {
+  try {
+    const r = await fetch('/api/steam-info?appid=' + encodeURIComponent(appid));
+    if (!r.ok) return null;
+    return await r.json();
+  } catch (e) { return null; }
+}
 function steamErrorMessage(code) {
   switch (code) {
     case 'no_key': return 'Le site n\'a pas encore de clé Steam : ajoute la variable STEAM_API_KEY sur Vercel (voir le guide), puis redéploie.';
@@ -1005,24 +1047,43 @@ function gamesCol() { return roomRef().collection('games'); }
 function swipesCol() { return roomRef().collection('swipes'); }
 function playersCol() { return roomRef().collection('players'); }
 
-const State = { games: [], swipes: [], players: [] };
+const State = { games: [], swipes: [], players: [], room: {} };
 const listeners = [];
 function onChange(fn) { listeners.push(fn); }
 function emit() { listeners.forEach(fn => fn()); }
+function isHost() { return !!(State.room && State.room.hostId && State.room.hostId === myId); }
 
+// Le premier arrivé dans une salle en devient l'hôte (seul à pouvoir exclure).
+async function ensureHost() {
+  try {
+    const snap = await roomRef().get();
+    if (!snap.exists) await roomRef().set({ hostId: myId, createdAt: Date.now() });
+  } catch (e) {}
+}
+
+let unsubs = [];
+function stopListening() { unsubs.forEach(u => { try { u && u(); } catch (e) {} }); unsubs = []; }
+
+let myEverSeen = false;
 function startListening() {
-  gamesCol().orderBy('ts', 'asc').onSnapshot(snap => {
+  stopListening();
+  myEverSeen = false;
+  unsubs.push(roomRef().onSnapshot(snap => { State.room = snap.exists ? snap.data() : {}; emit(); }));
+  unsubs.push(gamesCol().orderBy('ts', 'asc').onSnapshot(snap => {
     State.games = snap.docs.map(d => ({ id: d.id, ...d.data() }));
     emit();
-  });
-  swipesCol().onSnapshot(snap => {
+  }));
+  unsubs.push(swipesCol().onSnapshot(snap => {
     State.swipes = snap.docs.map(d => ({ id: d.id, ...d.data() }));
     emit();
-  });
-  playersCol().onSnapshot(snap => {
+  }));
+  unsubs.push(playersCol().onSnapshot(snap => {
     State.players = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    const stillHere = State.players.some(p => p.id === myId);
+    if (stillHere) myEverSeen = true;
+    else if (myEverSeen) { handleKicked(); return; }
     emit();
-  });
+  }));
 }
 
 async function joinRoom(code, name) {
@@ -1030,12 +1091,38 @@ async function joinRoom(code, name) {
   myName = name.trim();
   localStorage.setItem('gn_room', roomCode);
   localStorage.setItem('gn_name', myName);
+  await ensureHost();
   await playersCol().doc(myId).set({
     name: myName, color: colorFor(myId), playing: true, ts: Date.now()
   }, { merge: true });
   startListening();
-  document.getElementById('gate').remove();
+  const gate = document.getElementById('gate'); if (gate) gate.remove();
   renderAll();
+}
+
+function resetToGate(message) {
+  stopListening();
+  localStorage.removeItem('gn_room'); localStorage.removeItem('gn_name');
+  roomCode = ''; myName = '';
+  State.games = []; State.swipes = []; State.players = []; State.room = {};
+  focusGameId = null; infoModalGid = null;
+  closeModal();
+  if (message) toast(message);
+  showGate();
+}
+function handleKicked() { resetToGate('Tu as été exclu de la salle.'); }
+
+function leaveRoom() {
+  showConfirm('Quitter cette salle ? Tu pourras la rejoindre à nouveau avec le même code.', 'Quitter', async () => {
+    try { await playersCol().doc(myId).delete(); } catch (e) {}
+    resetToGate();
+  });
+}
+function kickPlayer(pid, name) {
+  if (!isHost() || pid === myId) return;
+  showConfirm('Exclure ' + name + ' de la salle ?', 'Exclure', async () => {
+    try { await playersCol().doc(pid).delete(); } catch (e) { toast('Impossible d\'exclure ce joueur.'); }
+  });
 }
 
 async function togglePlaying() {
@@ -1060,20 +1147,28 @@ async function importGames(items) {
     seen.add(key);
     const existing = findExisting(it.name, it.appid);
     if (existing) {
-      if (ownersOf(existing).some(o => normName(o) === normName(myName))) { already++; continue; }
+      if (addedOwnersOf(existing).some(o => normName(o) === normName(myName))) { already++; continue; }
       const upd = { addedByList: FV.arrayUnion(myName) };
       if (!existing.coverUrl && it.image) { upd.coverUrl = it.image; upd.coverFallback = it.fallbackImage || null; }
       if (!existing.appid && it.appid) upd.appid = it.appid;
+      if (!existing.infoTs && it.desc !== undefined) {
+        upd.desc = it.desc || ''; upd.genres = it.genres || []; upd.dev = it.dev || ''; upd.released = it.released || '';
+        upd.infoTs = Date.now();
+      }
+      if (existing.multiplayer === undefined && it.multiplayer !== undefined) upd.multiplayer = it.multiplayer;
       batch.update(gamesCol().doc(existing.id), upd);
       merged++;
     } else {
       const ref = gamesCol().doc();
-      batch.set(ref, {
+      const doc = {
         name: it.name.trim(), tag: (it.tag || 'Autre').trim() || 'Autre',
         addedBy: myName, addedByList: [myName],
         ts: Date.now() + added,
         coverUrl: it.image || null, coverFallback: it.fallbackImage || null, appid: it.appid || null,
-      });
+      };
+      if (it.desc !== undefined) { doc.desc = it.desc || ''; doc.genres = it.genres || []; doc.dev = it.dev || ''; doc.released = it.released || ''; doc.infoTs = Date.now(); }
+      if (it.multiplayer !== undefined) doc.multiplayer = it.multiplayer;
+      batch.set(ref, doc);
       if (!it.image) pendingCovers.push({ ref, name: it.name });
       added++;
     }
@@ -1226,12 +1321,15 @@ function renderHeader() {
   document.getElementById('roomCodeLabel').textContent = roomCode;
   const row = document.getElementById('playersRow');
   row.innerHTML = '';
+  const hostControls = isHost();
   State.players.forEach(p => {
     const off = p.playing === false;
     const el = document.createElement('div');
     el.className = 'player' + (off ? ' off' : '');
-    el.title = p.name + (off ? ' (ne joue pas ce soir)' : '');
-    el.innerHTML = avatarFor(p, off) + '<span>' + escapeHtml(p.name) + '</span>';
+    el.title = p.name + (p.id === State.room.hostId ? ' (hôte)' : '') + (off ? ' (ne joue pas ce soir)' : '');
+    el.innerHTML = avatarFor(p, off) + '<span>' + escapeHtml(p.name) + (p.id === State.room.hostId ? ' 👑' : '') + '</span>' +
+      (hostControls && p.id !== myId ? '<button class="kick-btn" type="button" title="Exclure ' + escapeHtml(p.name) + '" aria-label="Exclure ' + escapeHtml(p.name) + '">✕</button>' : '');
+    if (hostControls && p.id !== myId) el.querySelector('.kick-btn').onclick = e => { e.stopPropagation(); kickPlayer(p.id, p.name); };
     row.appendChild(el);
   });
   const me = State.players.find(p => p.id === myId);
@@ -1492,29 +1590,65 @@ document.addEventListener('keydown', e => {
 // Description des jeux (tirée de la page Steam, mémorisée dans la salle)
 // ---------------------------------------------------------------
 const infoCache = {};
+const priceCache = {};
 let focusGameId = null;
 let infoModalGid = null;
 const isWide = () => window.matchMedia && matchMedia('(min-width: 1100px)').matches;
 
+function priceHtml(g) {
+  const p = priceCache[g.id] || { state: 'idle' };
+  if (p.state === 'idle') return '<button class="price-btn" type="button" data-gid="' + g.id + '">💰 Voir le prix le plus bas</button>';
+  if (p.state === 'loading') return '<div class="price-loading">Recherche du meilleur prix…</div>';
+  if (p.state === 'none') return '<div class="price-none">Aucun prix trouvé pour ce jeu.</div>';
+  const off = p.savings ? ' <span class="price-off">-' + p.savings + '%</span>' : '';
+  return '<a class="price-result" href="' + p.url + '" target="_blank" rel="noopener noreferrer">💰 ' + p.price.toFixed(2) + ' € chez ' + escapeHtml(p.store) + off + '</a>' +
+    (p.approx ? '<div class="price-approx">Correspondance approximative — vérifie le titre avant d\'acheter.</div>' : '');
+}
+async function ensurePrice(gid) {
+  const g = gameById(gid);
+  if (!g || (priceCache[gid] && priceCache[gid].state !== 'idle')) return;
+  priceCache[gid] = { state: 'loading' };
+  refreshInfo();
+  let result = { state: 'none' };
+  try {
+    const r = await fetch('/api/game-price?name=' + encodeURIComponent(g.name));
+    if (r.ok) {
+      const d = await r.json();
+      if (d && d.found) result = { state: 'ok', price: d.price, store: d.store, url: d.url, savings: d.savings, approx: d.approx };
+    }
+  } catch (e) {}
+  priceCache[gid] = result;
+  refreshInfo();
+}
+document.addEventListener('click', e => {
+  const btn = e.target.closest('.price-btn');
+  if (btn) ensurePrice(btn.dataset.gid);
+});
+
 function infoOf(g) {
-  if (g.desc) return { state: 'ok', desc: g.desc, genres: g.genres || [], dev: g.dev || '', released: g.released || '' };
-  if (g.infoTs) return { state: 'none' };
+  if (g.desc) return { state: 'ok', desc: g.desc, genres: g.genres || [], dev: g.dev || '', released: g.released || '', mp: g.multiplayer };
+  if (g.infoTs) return { state: 'none', mp: g.multiplayer };
   return infoCache[g.id] || { state: 'loading' };
+}
+function mpBadge(mp) {
+  if (mp === true) return '<div class="info-mp yes">🎮 Multijoueur</div>';
+  if (mp === false) return '<div class="info-mp no">🚫 Solo uniquement</div>';
+  return '';
 }
 function infoHtml(g) {
   const i = infoOf(g);
   const head = '<div class="info-kicker"></div><h3 class="info-title">' + escapeHtml(g.name) + '</h3>';
   if (i.state === 'loading') return head + '<div class="info-skel"><i></i><i></i><i></i></div>';
-  if (i.state === 'none') return head + '<p class="info-desc dim">Pas de description disponible pour ce jeu.</p>';
+  if (i.state === 'none') return head + mpBadge(i.mp) + '<p class="info-desc dim">Pas de description disponible pour ce jeu.</p>' + priceHtml(g);
   const genres = i.genres.length ? '<div class="info-genres">' + i.genres.map(x => '<span>' + escapeHtml(x) + '</span>').join('') + '</div>' : '';
   const meta = [i.dev, i.released ? 'Sortie : ' + i.released : ''].filter(Boolean).join(' · ');
-  return head + '<p class="info-desc">' + escapeHtml(i.desc) + '</p>' + genres +
-    (meta ? '<div class="info-meta">' + escapeHtml(meta) + '</div>' : '') + '<div class="info-src">Source : page Steam</div>';
+  return head + mpBadge(i.mp) + '<p class="info-desc">' + escapeHtml(i.desc) + '</p>' + genres +
+    (meta ? '<div class="info-meta">' + escapeHtml(meta) + '</div>' : '') + priceHtml(g) + '<div class="info-src">Source : page Steam</div>';
 }
 async function ensureInfo(g) {
   if (!g || g.desc || g.infoTs || infoCache[g.id]) return;
   infoCache[g.id] = { state: 'loading' };
-  let appid = g.appid || null, found = null, failed = false;
+  let appid = g.appid || null, found = null, mp, failed = false;
   try {
     if (!appid) {
       const r0 = await fetch('/api/steam-cover?name=' + encodeURIComponent(g.name));
@@ -1524,15 +1658,15 @@ async function ensureInfo(g) {
     if (appid && !failed) {
       const r = await fetch('/api/steam-info?appid=' + encodeURIComponent(appid));
       if (!r.ok) failed = true;
-      else { const d = await r.json(); if (d && d.found && d.description) found = d; else if (d && d.error) failed = true; }
+      else { const d = await r.json(); if (d) { mp = d.multiplayer; if (d.found && d.description) found = d; else if (d.error) failed = true; } }
     }
   } catch (e) { failed = true; }
   if (found) {
-    infoCache[g.id] = { state: 'ok', desc: found.description, genres: found.genres || [], dev: found.developer || '', released: found.released || '' };
-    gamesCol().doc(g.id).update({ desc: found.description, genres: found.genres || [], dev: found.developer || '', released: found.released || '', appid: appid || null, infoTs: Date.now() }).catch(() => {});
+    infoCache[g.id] = { state: 'ok', desc: found.description, genres: found.genres || [], dev: found.developer || '', released: found.released || '', mp };
+    gamesCol().doc(g.id).update({ desc: found.description, genres: found.genres || [], dev: found.developer || '', released: found.released || '', appid: appid || null, multiplayer: mp === undefined ? null : mp, infoTs: Date.now() }).catch(() => {});
   } else {
-    infoCache[g.id] = { state: 'none' };
-    if (!failed) gamesCol().doc(g.id).update({ desc: '', infoTs: Date.now() }).catch(() => {});
+    infoCache[g.id] = { state: 'none', mp };
+    if (!failed) gamesCol().doc(g.id).update({ desc: '', multiplayer: mp === undefined ? null : mp, infoTs: Date.now() }).catch(() => {});
   }
   refreshInfo();
 }
@@ -1586,6 +1720,29 @@ const libraryFormZone = document.createElement('div');
 libraryFormZone.style.marginTop = '8px';
 
 function setLibraryView(v) { libraryView = v; localStorage.setItem('gn_library_view', v); renderMain(true); }
+let librarySort = localStorage.getItem('gn_library_sort') || 'name';
+const SORT_LABELS = { name: 'Nom (A→Z)', recent: 'Ajout récent', tag: 'Genre', owner: 'Provenance' };
+function setLibrarySort(v) { librarySort = v; localStorage.setItem('gn_library_sort', v); renderMain(true); }
+
+// Trie et, pour « genre » et « provenance », regroupe les jeux sous des en-têtes.
+// La provenance retenue pour le regroupement est la personne qui a présenté le
+// jeu en premier ; la ligne du jeu continue d'afficher tous ses possesseurs.
+function groupGames(games, mode) {
+  const byName = (a, b) => a.name.localeCompare(b.name);
+  if (mode === 'recent') return [{ label: null, games: games.slice().sort((a, b) => b.ts - a.ts) }];
+  if (mode === 'tag' || mode === 'owner') {
+    const map = new Map();
+    games.forEach(g => {
+      const key = mode === 'tag' ? (g.tag || 'Autre') : (g.addedBy || 'Inconnu');
+      if (!map.has(key)) map.set(key, []);
+      map.get(key).push(g);
+    });
+    return Array.from(map.entries())
+      .sort((a, b) => a[0].localeCompare(b[0]))
+      .map(([label, list]) => ({ label, games: list.sort(byName) }));
+  }
+  return [{ label: null, games: games.slice().sort(byName) }];
+}
 
 function renderLibrary(main) {
   // Déjà affichée : on ne rafraîchit que le compteur et la liste (garde le focus et le formulaire).
@@ -1619,10 +1776,14 @@ function renderLibrary(main) {
   pasteLink.onclick = () => showPasteImport(formZone);
 
   const titleRow = document.createElement('div');
-  titleRow.style.cssText = 'display:flex;align-items:center;justify-content:space-between;margin-top:20px;gap:10px;';
+  titleRow.style.cssText = 'display:flex;align-items:center;justify-content:space-between;margin-top:20px;gap:10px;flex-wrap:wrap;';
   const title = document.createElement('div'); title.className = 'section-title'; title.id = 'libTitle';
   titleRow.appendChild(title);
   const rightSide = document.createElement('div'); rightSide.style.cssText = 'display:flex;align-items:center;gap:10px;';
+  const sortSel = document.createElement('select'); sortSel.className = 'sort-select'; sortSel.title = 'Trier par';
+  sortSel.innerHTML = Object.entries(SORT_LABELS).map(([v, l]) => '<option value="' + v + '"' + (v === librarySort ? ' selected' : '') + '>' + l + '</option>').join('');
+  sortSel.onchange = () => setLibrarySort(sortSel.value);
+  rightSide.appendChild(sortSel);
   const toggle = document.createElement('div'); toggle.className = 'view-toggle';
   toggle.innerHTML = '<button data-v="list" title="Vue liste" aria-label="Vue liste">☰</button><button data-v="grid" title="Vue grille" aria-label="Vue grille">⊞</button>';
   toggle.querySelectorAll('button').forEach(b => { b.classList.toggle('active', b.dataset.v === libraryView); b.onclick = () => setLibraryView(b.dataset.v); });
@@ -1639,11 +1800,18 @@ function renderLibrary(main) {
 function refreshLibraryList(main) {
   main.querySelector('#libTitle').textContent = 'Bibliothèque · ' + State.games.length;
   main.querySelector('#libClear').style.display = State.games.length ? '' : 'none';
+  const sel = main.querySelector('.sort-select'); if (sel && sel.value !== librarySort) sel.value = librarySort;
   const holder = main.querySelector('#libList');
   holder.innerHTML = '';
   if (!State.games.length) { const b = infoBox('Aucun jeu pour l\'instant', 'Ajoute-en un, lie ton compte Steam ou colle une liste.'); b.style.marginTop = '12px'; holder.appendChild(b); return; }
-  const sorted = State.games.slice().sort((a,b) => a.name.localeCompare(b.name));
-  holder.appendChild(libraryView === 'grid' ? buildGameGrid(sorted) : buildGameList(sorted));
+  const groups = groupGames(State.games, librarySort);
+  groups.forEach(grp => {
+    if (grp.label !== null) {
+      const h = document.createElement('div'); h.className = 'section-title lib-group'; h.textContent = grp.label + ' · ' + grp.games.length;
+      holder.appendChild(h);
+    }
+    holder.appendChild(libraryView === 'grid' ? buildGameGrid(grp.games) : buildGameList(grp.games));
+  });
 }
 
 function buildGameList(games) {
@@ -1693,7 +1861,8 @@ function showSteamLink(zone) {
     try {
       const data = await fetchSteamLibrary(val);
       mySteam = val; localStorage.setItem('gn_steam', val);
-      playersCol().doc(myId).set({ steamId: data.steamid }, { merge: true }).catch(() => {});
+      const ownedAppIds = data.games.map(g => g.appid).filter(Boolean);
+      playersCol().doc(myId).set({ steamId: data.steamid, ownedAppIds }, { merge: true }).catch(() => {});
       showSteamPreview(zone, data.games);
     } catch (e) {
       status.textContent = steamErrorMessage(e && e.code);
@@ -1716,15 +1885,19 @@ function showSteamPreview(zone, games) {
   head.innerHTML = '<b>' + games.length + '</b> jeux trouvés sur ton compte, triés par temps de jeu. Les démos, playtests et outils sont décochés.';
   box.appendChild(head);
 
+  const mpRow = document.createElement('div'); mpRow.className = 'mp-row';
+  mpRow.innerHTML = '<label><input type="checkbox" id="mpOnly" checked> 🎮 Multijoueur uniquement</label><span class="ir-meta" id="mpProgress"></span>';
+  box.appendChild(mpRow);
+
   const tools = document.createElement('div'); tools.className = 'import-tools';
   tools.innerHTML = '<button class="btn btn-ghost btn-sm" data-a="all">Tout</button><button class="btn btn-ghost btn-sm" data-a="none">Aucun</button><button class="btn btn-ghost btn-sm" data-a="top50">Top 50</button>';
   box.appendChild(tools);
 
   const preview = document.createElement('div'); preview.className = 'import-preview';
   games.forEach((g, i) => {
-    const row = document.createElement('label'); row.className = 'import-row';
+    const row = document.createElement('label'); row.className = 'import-row'; row.dataset.mp = g.appid ? 'pending' : 'unknown';
     const checked = !NOISE_GAME_RX.test(g.name);
-    row.innerHTML = '<input type="checkbox" data-i="'+i+'"'+(checked ? ' checked' : '')+'><span class="ir-name">'+escapeHtml(g.name)+'</span><span class="ir-meta">'+hoursLabel(g.playtime)+'</span>';
+    row.innerHTML = '<input type="checkbox" data-i="'+i+'"'+(checked ? ' checked' : '')+'><span class="ir-name">'+escapeHtml(g.name)+'</span><span class="ir-mp" title="Vérification du multijoueur">⋯</span><span class="ir-meta">'+hoursLabel(g.playtime)+'</span>';
     preview.appendChild(row);
   });
   box.appendChild(preview);
@@ -1733,21 +1906,63 @@ function showSteamPreview(zone, games) {
   box.appendChild(confirmBtn);
   zone.appendChild(box);
 
-  const boxes = () => Array.from(preview.querySelectorAll('input[type=checkbox]'));
-  const refresh = () => { const n = boxes().filter(b => b.checked).length; confirmBtn.textContent = 'Ajouter la sélection (' + n + ')'; confirmBtn.disabled = !n; };
+  const mpOnly = mpRow.querySelector('#mpOnly'), mpProgress = mpRow.querySelector('#mpProgress');
+  const rowEls = Array.from(preview.querySelectorAll('.import-row'));
+  const visible = row => row.style.display !== 'none';
+  const boxes = () => rowEls.map(r => r.querySelector('input[type=checkbox]'));
+  const refresh = () => {
+    const n = rowEls.filter(r => visible(r) && r.querySelector('input').checked).length;
+    confirmBtn.textContent = 'Ajouter la sélection (' + n + ')'; confirmBtn.disabled = !n;
+  };
+  // Un jeu confirmé solo est masqué si le filtre est actif ; les jeux non encore
+  // vérifiés (ou sans appid) restent visibles tant qu'on n'a pas la réponse.
+  function applyVisibility() {
+    rowEls.forEach(row => { row.style.display = (mpOnly.checked && row.dataset.mp === 'solo') ? 'none' : ''; });
+    refresh();
+  }
   preview.addEventListener('change', refresh);
+  mpOnly.addEventListener('change', applyVisibility);
   tools.addEventListener('click', e => {
     const a = e.target.dataset && e.target.dataset.a; if (!a) return;
-    boxes().forEach((b, i) => { b.checked = a === 'all' ? true : a === 'none' ? false : (i < 50 && !NOISE_GAME_RX.test(games[i].name)); });
+    rowEls.forEach((row, i) => {
+      const b = row.querySelector('input');
+      b.checked = a === 'all' ? true : a === 'none' ? false : (i < 50 && !NOISE_GAME_RX.test(games[i].name));
+    });
     refresh();
   });
   refresh();
 
+  // Vérification progressive du multijoueur (et récupération de la description
+  // au passage, pour ne pas la redemander plus tard une fois le jeu ajouté).
+  let done = 0, withAppid = rowEls.filter(r => games[+r.querySelector('input').dataset.i].appid).length;
+  if (withAppid) {
+    mpProgress.textContent = 'Vérification multijoueur… 0/' + withAppid;
+    runPool(rowEls.map(row => async () => {
+      const g = games[+row.querySelector('input').dataset.i];
+      if (!g.appid) return;
+      const info = await fetchSteamInfo(g.appid);
+      done++;
+      if (info) {
+        g._mp = typeof info.multiplayer === 'boolean' ? info.multiplayer : undefined;
+        if (info.found) { g._desc = info.description; g._genres = info.genres; g._dev = info.developer; g._released = info.released; }
+      }
+      row.dataset.mp = g._mp === true ? 'multi' : g._mp === false ? 'solo' : 'unknown';
+      const tag = row.querySelector('.ir-mp');
+      tag.textContent = g._mp === true ? '🎮' : g._mp === false ? '🚫' : '';
+      tag.title = g._mp === true ? 'Multijoueur confirmé' : g._mp === false ? 'Solo uniquement' : 'Multijoueur non déterminé';
+      mpProgress.textContent = done < withAppid ? 'Vérification multijoueur… ' + done + '/' + withAppid : '';
+      applyVisibility();
+    }), 6);
+  } else { mpProgress.textContent = ''; }
+
   confirmBtn.onclick = async () => {
-    const chosen = boxes().filter(b => b.checked).map(b => games[+b.dataset.i]);
+    const chosen = rowEls.filter(r => visible(r) && r.querySelector('input').checked).map(r => games[+r.querySelector('input').dataset.i]);
     confirmBtn.disabled = true; confirmBtn.textContent = 'Import en cours…';
     try {
-      const r = await importGames(chosen.map(g => ({ name: g.name, tag: 'Steam', appid: g.appid, image: g.image, fallbackImage: g.fallbackImage })));
+      const r = await importGames(chosen.map(g => ({
+        name: g.name, tag: 'Steam', appid: g.appid, image: g.image, fallbackImage: g.fallbackImage,
+        desc: g._desc, genres: g._genres, dev: g._dev, released: g._released, multiplayer: g._mp,
+      })));
       toast(summarizeImport(r));
       zone.innerHTML = '';
     } catch (e) { toast('L\'import a échoué. Réessaie.'); confirmBtn.disabled = false; refresh(); }
@@ -1787,12 +2002,27 @@ function showImportPreview(zone, raw) {
   zone.appendChild(box);
 }
 
+let matchesView = localStorage.getItem('gn_matches_view') || 'list';
+function setMatchesView(v) { matchesView = v; localStorage.setItem('gn_matches_view', v); renderMain(true); }
+
 function renderMatches(main) {
   main.innerHTML = '';
-  const title = document.createElement('div'); title.className = 'section-title ornate'; title.textContent = 'Matchs de ce soir';
-  main.appendChild(title);
+  const titleRow = document.createElement('div');
+  titleRow.style.cssText = 'display:flex;align-items:center;justify-content:space-between;gap:10px;';
+  const title = document.createElement('div'); title.className = 'section-title ornate'; title.style.flex = '1'; title.textContent = 'Matchs de ce soir';
+  titleRow.appendChild(title);
   const stats = matchStats();
+  if (stats.length) {
+    const toggle = document.createElement('div'); toggle.className = 'view-toggle';
+    toggle.innerHTML = '<button data-v="list" title="Vue liste" aria-label="Vue liste">☰</button><button data-v="grid" title="Vue grille" aria-label="Vue grille">⊞</button>';
+    toggle.querySelectorAll('button').forEach(b => { b.classList.toggle('active', b.dataset.v === matchesView); b.onclick = () => setMatchesView(b.dataset.v); });
+    titleRow.appendChild(toggle);
+  }
+  main.appendChild(titleRow);
   if (!stats.length) { main.appendChild(infoBox('Pas encore de match', 'Dès que plusieurs d\'entre vous auront aimé le même jeu, il apparaîtra ici.')); return; }
+  main.appendChild(matchesView === 'grid' ? buildMatchGrid(stats) : buildMatchList(stats));
+}
+function buildMatchList(stats) {
   const list = document.createElement('div'); list.className = 'match-list';
   stats.forEach(m => {
     const row = document.createElement('div'); row.className = 'match-row' + (m.full ? ' full' : '') + (m.game.id === focusGameId ? ' focused' : ''); row.dataset.gid = m.game.id;
@@ -1803,7 +2033,19 @@ function renderMatches(main) {
       (m.full ? '<span class="m-badge">MATCH</span>' : '');
     list.appendChild(row);
   });
-  main.appendChild(list);
+  return list;
+}
+function buildMatchGrid(stats) {
+  const grid = document.createElement('div'); grid.className = 'game-grid';
+  stats.forEach(m => {
+    const names = m.likers.map(l => l.playerName).filter(Boolean).join(', ');
+    const item = document.createElement('div'); item.className = 'grid-item' + (m.game.id === focusGameId ? ' focused' : ''); item.dataset.gid = m.game.id;
+    item.addEventListener('click', () => openInfo(m.game.id));
+    item.innerHTML = '<div class="grid-cover">' + coverHtml(m.game, { small: true }) + (m.full ? '<span class="m-badge" style="position:absolute;top:6px;left:6px;z-index:6;">MATCH</span>' : '') + '</div>' +
+      '<div class="grid-name">' + escapeHtml(m.game.name) + '</div><div class="grid-by">' + m.count + '/' + m.denom + ' — ' + escapeHtml(names) + '</div>';
+    grid.appendChild(item);
+  });
+  return grid;
 }
 
 const TAB_ORDER = ['deck', 'library', 'matches'];
@@ -1833,11 +2075,13 @@ document.getElementById('themeBtn').addEventListener('click', () => {
 document.getElementById('roomPill').addEventListener('click', () => {
   if (navigator.clipboard) navigator.clipboard.writeText(roomCode).then(() => toast('Code copié : ' + roomCode));
 });
+document.getElementById('leaveBtn').addEventListener('click', leaveRoom);
 
 // ---------------------------------------------------------------
 // Porte d'entrée : rejoindre ou créer une salle
 // ---------------------------------------------------------------
 function showGate() {
+  if (document.getElementById('gate')) return;
   const gate = document.createElement('div'); gate.className = 'gate'; gate.id = 'gate';
   gate.innerHTML =
     '<div class="box">' +
@@ -1860,7 +2104,7 @@ function showGate() {
 
 applyTheme(theme);
 if (roomCode && myName) {
-  startListening();
+  ensureHost().then(startListening);
   playersCol().doc(myId).set({ name: myName, color: colorFor(myId), playing: true, ts: Date.now() }, { merge: true });
 } else {
   showGate();
