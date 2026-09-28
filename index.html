@@ -15,8 +15,51 @@
 <script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore-compat.js"></script>
 
+<style id="base">
+  /* ===== Base commune : structure et animations partagées par tous les thèmes ===== */
+  :root { --extra-off: 0px; }
+  .shell { display: flex; justify-content: center; gap: 28px; min-height: 100%; }
+  .shell .app { flex: 0 1 520px; width: 100%; max-width: 520px; margin: 0; }
+  .info-side { display: none; }
+  .info-side:empty { visibility: hidden; }
+  .card-caption .desc { display: none; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; cursor: pointer; }
+  @media (min-width: 1100px) {
+    .info-side { display: block; flex: none; width: 340px; position: sticky; top: 20px; align-self: flex-start; margin-top: 20px; }
+    .card-caption .desc, .card-caption .info-btn { display: none !important; }
+  }
+  @media (min-height: 780px) and (max-width: 1099px) {
+    :root { --extra-off: 46px; }
+    .card-caption .desc:not(:empty) { display: -webkit-box; }
+  }
+
+  /* Transition entre les pages : glissement + fondu, dans le sens de l'onglet visé */
+  @keyframes pageInR { from { opacity: 0; transform: translateX(var(--page-shift, 16px)); } to { opacity: 1; transform: none; } }
+  @keyframes pageInL { from { opacity: 0; transform: translateX(calc(var(--page-shift, 16px) * -1)); } to { opacity: 1; transform: none; } }
+  main.page-in-r { animation: pageInR var(--page-dur, .24s) var(--page-ease, ease-out) both; }
+  main.page-in-l { animation: pageInL var(--page-dur, .24s) var(--page-ease, ease-out) both; }
+  @keyframes capSwap { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+  .card-caption.swap { animation: capSwap var(--swap-dur, .22s) var(--swap-ease, ease-out) both; }
+
+  /* Cartes : le tampon suit le doigt, la carte qui part reste au-dessus */
+  .swipe-card .stamp { transition: opacity .08s linear; }
+  .swipe-card.leaving { will-change: transform; }
+
+  /* Description : chargement, fenêtre d'infos */
+  @keyframes skel { 50% { opacity: .26; } }
+  .info-skel i { display: block; height: 10px; border-radius: 5px; background: currentColor; opacity: .12; margin: 9px 0; animation: skel 1.3s ease-in-out infinite; }
+  .info-skel i:nth-child(2) { width: 90%; }
+  .info-skel i:nth-child(3) { width: 64%; }
+  .modal-box.modal-info { background: none !important; border: none !important; box-shadow: none !important; outline: none !important; padding: 0 !important; max-width: 360px; }
+  .modal-box.modal-info::before { display: none !important; }
+  .game-row, .grid-item, .match-row { cursor: pointer; }
+
+  @media (prefers-reduced-motion: reduce) {
+    main.page-in-r, main.page-in-l, .card-caption.swap, .info-skel i { animation: none; }
+  }
+</style>
 <style id="theme-flat">
   :root {
+    --stack-off: 385px;
     color-scheme: light dark;
     --bg: #F5F5F2;
     --surface: #FFFFFF;
@@ -86,7 +129,7 @@
   .deck-progress span { flex: none; }
 
   .deck-wrap { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 0; position: relative; }
-  .deck-stack { position: relative; width: min(100%, 320px, max(150px, calc((100vh - 385px) * 0.75))); width: min(100%, 320px, max(150px, calc((100dvh - 385px) * 0.75))); aspect-ratio: 3 / 4; }
+  .deck-stack { position: relative; width: min(100%, 320px, max(150px, calc((100vh - var(--stack-off) - var(--extra-off, 0px)) * 0.75))); width: min(100%, 320px, max(150px, calc((100dvh - var(--stack-off) - var(--extra-off, 0px)) * 0.75))); aspect-ratio: 3 / 4; }
   .swipe-card { position: absolute; inset: 0; background: var(--surface-2); border: 1px solid var(--line); border-radius: 18px; overflow: hidden; touch-action: none; will-change: transform; cursor: grab; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; }
   .swipe-card:active { cursor: grabbing; }
   @keyframes cardPopIn { from { transform: scale(.96) translateY(10px); opacity: 0; } to { transform: scale(1) translateY(0); opacity: 1; } }
@@ -105,8 +148,8 @@
   .stamp.yes.punch { animation: stampPunchYes .3s ease-out both; }
   .stamp.no.punch { animation: stampPunchNo .3s ease-out both; }
   .swipe-card .stamp { position: absolute; top: 16px; z-index: 6; font-size: 14px; font-weight: 700; letter-spacing: 0.02em; padding: 6px 14px; border-radius: 999px; color: #fff; opacity: 0; pointer-events: none; }
-  .swipe-card .stamp.yes { right: 16px; background: var(--green); }
-  .swipe-card .stamp.no { left: 16px; background: var(--red); }
+  .swipe-card .stamp.yes { left: 16px; background: var(--green); transform: rotate(-10deg); }
+  .swipe-card .stamp.no { right: 16px; background: var(--red); transform: rotate(10deg); }
 
   .card-caption { width: 100%; max-width: 320px; margin-top: 18px; text-align: left; }
   .card-caption .name { font-size: 20px; font-weight: 650; letter-spacing: -0.01em; line-height: 1.2; color: var(--text); }
@@ -203,9 +246,26 @@
   .modal-box p { font-size: 15.5px; line-height: 1.4; margin: 0 0 16px; }
 
   @media (prefers-reduced-motion: reduce) { .swipe-card.card-enter { animation: none; } }
+
+  /* ---- Description du jeu ---- */
+  :root { --page-dur: .24s; --page-ease: cubic-bezier(.2,.8,.3,1); --page-shift: 14px; --swap-dur: .2s; }
+  .info-card { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 18px; }
+  .info-kicker { font-size: 12px; font-weight: 600; letter-spacing: 0.07em; text-transform: uppercase; color: var(--dim); margin-bottom: 8px; }
+  .info-kicker::before { content: 'À propos du jeu'; }
+  .info-title { font-size: 18px; font-weight: 650; letter-spacing: -0.01em; line-height: 1.25; margin: 0 0 10px; }
+  .info-desc { font-size: 14.5px; line-height: 1.55; color: var(--text); margin: 0 0 12px; }
+  .info-desc.dim { color: var(--dim); }
+  .info-genres { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 12px; }
+  .info-genres span { font-size: 11.5px; font-weight: 600; color: var(--dim); background: var(--surface-2); padding: 2px 8px; border-radius: 6px; }
+  .info-meta { font-size: 12.5px; color: var(--dim); }
+  .info-src { font-size: 11.5px; color: var(--dim); margin-top: 12px; padding-top: 10px; border-top: 1px solid var(--line); }
+  .card-caption .desc { font-size: 13.5px; line-height: 1.4; color: var(--dim); margin-top: 8px; }
+  .info-btn { margin-left: auto; flex: none; width: 24px; height: 24px; padding: 0; border-radius: 50%; border: 1px solid var(--line); background: var(--surface); color: var(--dim); font: 600 13px/1 var(--font); cursor: pointer; }
+  .game-row.focused, .grid-item.focused .grid-cover, .match-row.focused { border-color: var(--accent); }
 </style>
 <style id="theme-mh" media="not all">
   :root {
+    --stack-off: 425px;
     color-scheme: dark;
     --leather: #3A291D;
     --leather-2: #4D3727;
@@ -284,7 +344,7 @@
   .deck-progress span { flex: none; }
 
   .deck-wrap { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 0; position: relative; }
-  .deck-stack { position: relative; width: min(100%, 320px, max(150px, calc((100vh - 425px) * 0.75))); width: min(100%, 320px, max(150px, calc((100dvh - 425px) * 0.75))); aspect-ratio: 3 / 4; }
+  .deck-stack { position: relative; width: min(100%, 320px, max(150px, calc((100vh - var(--stack-off) - var(--extra-off, 0px)) * 0.75))); width: min(100%, 320px, max(150px, calc((100dvh - var(--stack-off) - var(--extra-off, 0px)) * 0.75))); aspect-ratio: 3 / 4; }
   .swipe-card { position: absolute; inset: 0; background: #1A110A; border: 7px solid transparent; border-image: var(--gold-frame) 1;
     box-shadow: 0 8px 0 -1px rgba(0,0,0,0.5), 0 18px 34px rgba(0,0,0,0.55);
     overflow: hidden; touch-action: none; will-change: transform; cursor: grab; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; }
@@ -316,8 +376,8 @@
   .stamp.yes.punch { animation: stampPunchYes .45s cubic-bezier(.3,1.4,.5,1) both; }
   .stamp.no.punch { animation: stampPunchNo .45s cubic-bezier(.3,1.4,.5,1) both; }
   .swipe-card .stamp { position: absolute; top: 56px; z-index: 6; font-family: var(--font-display); font-size: 28px; letter-spacing: 0.06em; padding: 3px 14px; border: 4px double currentColor; border-radius: 3px; background: rgba(240, 226, 187, 0.93); opacity: 0; pointer-events: none; }
-  .swipe-card .stamp.yes { right: 20px; color: #2F6A22; transform: rotate(-8deg); }
-  .swipe-card .stamp.no { left: 20px; color: var(--wax); transform: rotate(8deg); }
+  .swipe-card .stamp.yes { left: 20px; color: #2F6A22; transform: rotate(-10deg); }
+  .swipe-card .stamp.no { right: 20px; color: var(--wax); transform: rotate(10deg); }
 
   .card-caption { position: relative; width: 100%; max-width: 320px; margin-top: 14px; text-align: left; background: var(--parchment); border: 2px solid var(--bronze); border-radius: 3px; padding: 10px 14px 10px; color: var(--ink); box-shadow: var(--parch-shadow); }
   .card-caption::before { content: ''; position: absolute; top: -8px; left: 50%; width: 14px; height: 14px; margin-left: -7px; border-radius: 50%; background: radial-gradient(circle at 35% 30%, #FFF1C4, #C99A3B 55%, #6B4520); box-shadow: 0 2px 2px rgba(0,0,0,0.6); }
@@ -423,9 +483,29 @@
   .modal-box p { font-size: 19px; line-height: 1.25; margin: 0 0 16px; }
 
   @media (prefers-reduced-motion: reduce) { .swipe-card.card-enter { animation: none; } }
+
+  /* ---- Description du jeu ---- */
+  :root { --page-dur: .34s; --page-ease: cubic-bezier(.22,.9,.3,1); --page-shift: 24px; --swap-dur: .28s; }
+  .info-card { position: relative; background: var(--parchment); border: 2px solid var(--bronze); border-radius: 3px; padding: 18px 18px 14px; color: var(--ink); box-shadow: var(--parch-shadow); }
+  .info-card::before { content: ''; position: absolute; top: -8px; left: 50%; width: 14px; height: 14px; margin-left: -7px; border-radius: 50%; background: radial-gradient(circle at 35% 30%, #FFF1C4, #C99A3B 55%, #6B4520); box-shadow: 0 2px 2px rgba(0,0,0,0.6); }
+  .info-kicker { font-family: var(--font-caps); font-weight: 700; font-size: 13px; letter-spacing: 0.1em; color: var(--wax); margin-bottom: 6px; }
+  .info-kicker::before { content: 'Rapport de la Guilde'; }
+  .info-title { font-family: var(--font-display); font-weight: 400; font-size: 19px; line-height: 1.2; color: var(--ink); margin: 0 0 10px; }
+  .info-desc { font-size: 17.5px; line-height: 1.4; color: var(--ink); margin: 0 0 10px; }
+  .info-desc.dim { color: var(--ink-dim); font-style: italic; }
+  .info-genres { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 10px; }
+  .info-genres span { font-family: var(--font-caps); font-weight: 700; font-size: 12.5px; letter-spacing: 0.06em; color: var(--parch); background: var(--bronze); padding: 1px 8px; border-radius: 2px; }
+  .info-meta { font-style: italic; font-size: 15.5px; color: var(--ink-dim); }
+  .info-src { font-style: italic; font-size: 14px; color: var(--ink-dim); margin-top: 10px; padding-top: 8px; border-top: 1px solid rgba(139,94,43,0.4); }
+  .card-caption .desc { font-style: italic; font-size: 15.5px; line-height: 1.25; color: var(--ink-dim); margin-top: 6px; }
+  .info-btn { margin-left: auto; flex: none; width: 26px; height: 26px; padding: 0; border-radius: 50%; border: 2px solid var(--gold); background: linear-gradient(180deg, var(--leather-2), var(--leather)); color: var(--gold-hi); font: 700 14px/1 var(--font-display); cursor: pointer; }
+  .game-row.focused { border-color: var(--gold-hi); box-shadow: 0 0 0 1px var(--gold-hi), 0 3px 0 rgba(0,0,0,0.42); }
+  .grid-item.focused .grid-cover { box-shadow: 0 0 0 2px var(--gold-hi), 0 5px 0 rgba(0,0,0,0.45); }
+  .match-row.focused { box-shadow: inset 0 0 26px rgba(120, 80, 30, 0.38), 0 0 0 2px var(--gold-hi); }
 </style>
 <style id="theme-repo" media="not all">
   :root {
+    --stack-off: 405px;
     color-scheme: dark;
     --bg: #0E1115;
     --panel: #161A20;
@@ -509,7 +589,7 @@
   .deck-progress span { flex: none; }
 
   .deck-wrap { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 0; position: relative; }
-  .deck-stack { position: relative; width: min(100%, 320px, max(150px, calc((100vh - 405px) * 0.75))); width: min(100%, 320px, max(150px, calc((100dvh - 405px) * 0.75))); aspect-ratio: 3 / 4; }
+  .deck-stack { position: relative; width: min(100%, 320px, max(150px, calc((100vh - var(--stack-off) - var(--extra-off, 0px)) * 0.75))); width: min(100%, 320px, max(150px, calc((100dvh - var(--stack-off) - var(--extra-off, 0px)) * 0.75))); aspect-ratio: 3 / 4; }
   .swipe-card {
     position: absolute; inset: 0; background: #0A0C10; border: 3px solid var(--orange);
     box-shadow: 6px 6px 0 rgba(0, 0, 0, 0.75);
@@ -548,8 +628,8 @@
   .stamp.yes.punch { animation: stampPunchYes .45s steps(7, end) both; }
   .stamp.no.punch { animation: stampPunchNo .45s steps(7, end) both; }
   .swipe-card .stamp { position: absolute; top: 58px; z-index: 6; font-family: var(--font-display); font-weight: 700; font-size: 32px; letter-spacing: 0.06em; padding: 2px 14px; border: 4px solid currentColor; background: rgba(6, 8, 12, 0.8); opacity: 0; pointer-events: none; }
-  .swipe-card .stamp.yes { right: 22px; color: var(--green); transform: rotate(7deg); }
-  .swipe-card .stamp.no { left: 22px; color: var(--red); transform: rotate(-7deg); }
+  .swipe-card .stamp.yes { left: 22px; color: var(--green); transform: rotate(-8deg); }
+  .swipe-card .stamp.no { right: 22px; color: var(--red); transform: rotate(8deg); }
 
   .card-caption { width: 100%; max-width: 320px; margin-top: 12px; text-align: left; background: var(--panel); border: 2px solid var(--line-hi); border-top: 4px solid var(--yellow); box-shadow: 4px 4px 0 #000; padding: 8px 12px 9px; }
   .card-caption .name { font-family: var(--font-display); font-weight: 700; font-size: 19px; line-height: 1.1; color: var(--text); }
@@ -661,10 +741,29 @@
   nav.tabbar .tab[data-tab=deck] .ic::before { content: '\25C8'; }
   nav.tabbar .tab[data-tab=library] .ic::before { content: '\25A4'; }
   nav.tabbar .tab[data-tab=matches] .ic::before { content: '\2605'; }
+
+  /* ---- Description du jeu ---- */
+  :root { --page-dur: .28s; --page-ease: steps(6, end); --page-shift: 18px; --swap-dur: .24s; --swap-ease: steps(5, end); }
+  .info-card { background: var(--panel); border: 2px solid var(--line-hi); border-top: 4px solid var(--yellow); box-shadow: 4px 4px 0 #000; padding: 12px 16px 14px; }
+  .info-kicker { font-family: var(--font-mono); font-size: 18px; letter-spacing: 0.05em; text-transform: uppercase; color: var(--orange); line-height: 1; }
+  .info-kicker::before { content: '> Fiche article'; }
+  .info-title { font-family: var(--font-display); font-weight: 700; font-size: 20px; line-height: 1.12; margin: 8px 0 10px; }
+  .info-desc { font-family: var(--font-mono); font-size: 20px; line-height: 1.1; color: var(--text); margin: 0 0 10px; }
+  .info-desc.dim { color: var(--dim); }
+  .info-genres { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 10px; }
+  .info-genres span { font-family: var(--font-mono); font-size: 17px; line-height: 1; text-transform: uppercase; color: #1A1400; background: var(--yellow); padding: 2px 7px 1px; }
+  .info-meta { font-family: var(--font-mono); font-size: 18px; color: var(--dim); line-height: 1.05; }
+  .info-src { font-family: var(--font-mono); font-size: 17px; color: var(--dim); margin-top: 10px; padding-top: 8px; border-top: 2px solid var(--line); }
+  .info-skel i { border-radius: 0; }
+  .card-caption .desc { font-family: var(--font-mono); font-size: 18px; line-height: 1.05; color: var(--dim); margin-top: 6px; }
+  .info-btn { margin-left: auto; flex: none; width: 24px; height: 24px; padding: 0; border: 2px solid #000; background: var(--yellow); color: #1A1400; font: 700 14px/1 var(--font-display); box-shadow: 2px 2px 0 #000; cursor: pointer; }
+  .game-row.focused, .match-row.focused { border-color: var(--orange); }
+  .grid-item.focused .grid-cover { outline-color: var(--orange); }
 </style>
 <script>(function(){try{var t=localStorage.getItem("gn_theme2");if(t&&t!=="flat"&&document.getElementById("theme-"+t)){["flat","mh","repo"].forEach(function(k){document.getElementById("theme-"+k).media=(k===t?"all":"not all");});var m=document.querySelector("meta[name=theme-color]");if(m)m.setAttribute("content",{mh:"#2B1C12",repo:"#0E1115"}[t]);}}catch(e){}})();</script>
 </head>
 <body>
+<div class="shell">
 <div class="app" id="app">
   <header class="top">
     <div class="brand">
@@ -682,6 +781,8 @@
     <div class="tab" data-tab="library"><span class="ic"></span><span class="lb">Bibliothèque</span></div>
     <div class="tab" data-tab="matches"><span class="ic"></span><span class="lb">Matchs</span></div>
   </nav>
+</div>
+<aside class="info-side" id="infoSide" aria-live="polite"></aside>
 </div>
 <div class="toast" id="toast"></div>
 
@@ -778,7 +879,7 @@ function normName(s) {
   return String(s || '')
     .toLowerCase()
     .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
-    .replace(/[™®©]/g, '')
+    .replace(/[™®©'’`]/g, '')
     .replace(/[^a-z0-9]+/g, ' ')
     .trim();
 }
@@ -1023,7 +1124,11 @@ async function swipeGame(gameId, liked) {
   const docId = gameId + '__' + myId;
   try {
     await swipesCol().doc(docId).set({ gameId, playerId: myId, playerName: myName, liked, ts: Date.now() });
-  } catch (e) { toast('Le swipe n\'a pas pu être enregistré.'); }
+  } catch (e) {
+    locallySwiped.delete(gameId);
+    toast('Le swipe n\'a pas pu être enregistré.');
+    if (currentTab === 'deck') renderMain();
+  }
 }
 
 function activePlayers() { return State.players.filter(p => p.playing !== false); }
@@ -1115,7 +1220,6 @@ function applyTheme(name, announce) {
 }
 
 let currentTab = 'deck';
-let deckAnimating = false;
 let libraryView = localStorage.getItem('gn_library_view') || 'list';
 
 function renderHeader() {
@@ -1142,14 +1246,13 @@ function renderHeader() {
 function renderMain(force) {
   const main = document.getElementById('main');
   document.querySelectorAll('.tab').forEach(t => t.classList.toggle('active', t.dataset.tab === currentTab));
-  if (currentTab === 'deck' && deckAnimating) return;
   if (force || main.dataset.view !== currentTab) { main.innerHTML = ''; main.dataset.view = ''; main.dataset.sig = ''; }
   if (currentTab === 'deck') renderDeck(main);
   else if (currentTab === 'library') renderLibrary(main);
   else renderMatches(main);
   main.dataset.view = currentTab;
 }
-function renderAll() { renderHeader(); renderMain(); }
+function renderAll() { renderHeader(); renderMain(); refreshInfo(); }
 onChange(renderAll);
 
 function infoBox(title, body) {
@@ -1158,110 +1261,323 @@ function infoBox(title, body) {
 }
 function presentedBy(g) { const o = ownersOf(g); return o.length ? o.join(', ') : 'quelqu\'un'; }
 
+// ---------------------------------------------------------------
+// Paquet de cartes façon « swipe » : les cartes sont déplacées en place
+// (jamais reconstruites pendant un geste) et la suivante remonte en douceur.
+// ---------------------------------------------------------------
+const Deck = { stack: null, els: [], dragging: false, leaving: 0, dirty: false };
+const VISIBLE = 3, DEPTH_SCALE = 0.045, DEPTH_Y = 10;
+
+function depthTransform(depth, p) {
+  const d = Math.max(depth - (p || 0), 0);
+  return 'translate3d(0px,' + (d * DEPTH_Y).toFixed(2) + 'px,0) scale(' + (1 - d * DEPTH_SCALE).toFixed(4) + ')';
+}
+function pad2(n) { return String(n).padStart(2, '0'); }
+function gameById(id) { return State.games.find(g => g.id === id) || null; }
+function flushDirty() {
+  if (Deck.dirty && !Deck.dragging && !Deck.leaving) { Deck.dirty = false; if (currentTab === 'deck') renderMain(); }
+}
+
+function buildCardEl(g) {
+  const card = document.createElement('div');
+  card.className = 'swipe-card';
+  card.dataset.gid = g.id;
+  card.dataset.cover = g.coverUrl || '';
+  card.innerHTML = coverHtml(g) +
+    '<i class="bk tl"></i><i class="bk tr"></i><i class="bk bl"></i><i class="bk br"></i>' +
+    '<i class="orn tl"></i><i class="orn tr"></i><i class="orn bl"></i><i class="orn br"></i>' +
+    '<div class="hud tl"></div><div class="hud tr rec">Rec</div>' +
+    '<div class="stamp yes">OUI</div><div class="stamp no">NON</div>';
+  attachSwipeGestures(card);
+  return card;
+}
+
+// Place chaque carte selon sa profondeur (0 = dessus).
+function layoutDeck(animate) {
+  const total = State.games.length, done = total - myUnswiped().length;
+  Deck.els.forEach((el, depth) => {
+    el.style.zIndex = String(10 - depth);
+    el.style.transformOrigin = '';
+    el.style.transition = animate ? 'transform .32s cubic-bezier(.2,.8,.3,1)' : 'none';
+    el.style.transform = depthTransform(depth);
+    el.style.pointerEvents = depth === 0 ? 'auto' : 'none';
+    el.classList.toggle('is-top', depth === 0);
+    const hud = el.querySelector('.hud.tl'); if (hud) hud.textContent = '#' + pad2(done + depth + 1) + '/' + total;
+    if (depth > 0) el.querySelectorAll('.stamp').forEach(st => { st.style.opacity = '0'; });
+  });
+}
+
+// Met le paquet en phase avec les données, en ne touchant qu'à ce qui a changé.
+function syncDeck(animate) {
+  const want = myUnswiped().slice(0, VISIBLE);
+  const prefixOk = Deck.els.length <= want.length && Deck.els.every((el, i) => el.dataset.gid === want[i].id);
+  if (!prefixOk) {
+    Array.from(Deck.stack.querySelectorAll('.swipe-card:not(.leaving)')).forEach(el => el.remove());
+    Deck.els = [];
+  }
+  Deck.els.forEach((el, i) => {   // jaquette arrivée entre-temps
+    const g = want[i];
+    if (g && (el.dataset.cover || '') !== (g.coverUrl || '')) {
+      el.dataset.cover = g.coverUrl || '';
+      const c = el.querySelector('.cover'); if (c) c.outerHTML = coverHtml(g);
+    }
+  });
+  const fresh = [];
+  for (let i = Deck.els.length; i < want.length; i++) {
+    const el = buildCardEl(want[i]);
+    Deck.els.push(el); Deck.stack.appendChild(el); fresh.push(el);
+  }
+  layoutDeck(animate && prefixOk);
+  if (prefixOk) fresh.forEach(el => {
+    el.style.opacity = '0';
+    requestAnimationFrame(() => { el.style.transition = 'transform .32s cubic-bezier(.2,.8,.3,1), opacity .3s ease'; el.style.opacity = '1'; });
+  });
+  updateProgress(); refreshCaption(); refreshInfo();
+}
+
+function updateProgress() {
+  const el = document.querySelector('.deck-progress'); if (!el) return;
+  const total = State.games.length, done = total - myUnswiped().length;
+  const bar = el.querySelector('.bar i'), txt = el.querySelector('span');
+  if (bar) bar.style.width = (total ? Math.round(done / total * 100) : 0) + '%';
+  if (txt) txt.textContent = done + ' / ' + total + ' vus';
+}
+function refreshCaption() {
+  const cap = document.querySelector('.card-caption'); if (!cap || !Deck.els[0]) return;
+  const top = gameById(Deck.els[0].dataset.gid); if (!top) return;
+  const changed = cap.dataset.gid !== top.id;
+  cap.dataset.gid = top.id;
+  cap.querySelector('.name').textContent = top.name;
+  cap.querySelector('.tag').textContent = top.tag || 'Jeu';
+  cap.querySelector('.added-by').textContent = 'Présenté par : ' + presentedBy(top);
+  if (changed) { cap.classList.remove('swap'); void cap.offsetWidth; cap.classList.add('swap'); }
+}
+
 function renderDeck(main) {
   const cards = myUnswiped();
-  // Évite de reconstruire (et de rejouer l'animation / couper un glissement en cours)
-  // quand une mise à jour Firestore ne change rien aux cartes affichées.
-  const sig = cards.slice(0, 3).map(g => [g.id, g.name, g.tag, g.coverUrl ? 1 : 0, presentedBy(g)].join(':')).join('|') + '#' + State.games.length + '/' + cards.length + '/' + State.swipes.length;
-  if (main.dataset.view === 'deck' && main.dataset.sig === sig && main.children.length) return;
-  main.dataset.sig = sig;
+  const live = Deck.stack && main.contains(Deck.stack);
+  if (live && cards.length) {                       // vue déjà affichée : mise à jour en place
+    if (Deck.dragging || Deck.leaving) { Deck.dirty = true; refreshInfo(); return; }
+    syncDeck(false); return;
+  }
+  Deck.stack = null; Deck.els = [];
   main.innerHTML = '';
   if (!State.games.length) { main.appendChild(infoBox('Bibliothèque vide', 'Ajoute vos jeux dans l\'onglet <em>Bibliothèque</em> pour commencer à swiper.')); return; }
   if (!cards.length) { main.appendChild(infoBox('Tout est swipé', (myName ? myName + ', t' : 'T') + 'u as donné ton avis sur tous les jeux. Va voir l\'onglet <em>Matchs</em>, ou ajoute d\'autres jeux.')); return; }
 
-  const total = State.games.length, done = total - cards.length;
   const progress = document.createElement('div'); progress.className = 'deck-progress';
-  progress.innerHTML = '<div class="bar"><i style="width:' + Math.round(done / total * 100) + '%"></i></div><span>' + done + ' / ' + total + ' vus</span>';
+  progress.innerHTML = '<div class="bar"><i></i></div><span></span>';
   main.appendChild(progress);
 
   const wrap = document.createElement('div'); wrap.className = 'deck-wrap';
   const stack = document.createElement('div'); stack.className = 'deck-stack';
   wrap.appendChild(stack);
-
-  const visible = cards.slice(0, 3);
-  // Construit de la plus lointaine à la plus proche : la dernière carte ajoutée
-  // (celle du dessus) est visible[0], le même jeu que le titre et les boutons.
-  for (let depth = visible.length - 1; depth >= 0; depth--) {
-    const g = visible[depth];
-    const card = document.createElement('div');
-    card.className = 'swipe-card' + (depth === 0 ? ' card-enter' : '');
-    card.style.transform = 'scale(' + (1 - depth * 0.045) + ') translateY(' + (depth * 10) + 'px)';
-    card.style.zIndex = String(10 - depth);
-    card.innerHTML = coverHtml(g) +
-      '<i class="bk tl"></i><i class="bk tr"></i><i class="bk bl"></i><i class="bk br"></i>' +
-      '<i class="orn tl"></i><i class="orn tr"></i><i class="orn bl"></i><i class="orn br"></i>' +
-      '<div class="hud tl">#' + String(done + depth + 1).padStart(2, '0') + '/' + total + '</div><div class="hud tr rec">Rec</div>' +
-      '<div class="stamp yes">OUI</div><div class="stamp no">NON</div>';
-    if (depth === 0) {
-      attachSwipeGestures(card, g.id);
-      card.addEventListener('animationend', () => card.classList.remove('card-enter'), { once: true });
-    }
-    stack.appendChild(card);
-  }
-
-  const top = cards[0];
-  const caption = document.createElement('div'); caption.className = 'card-caption';
-  caption.innerHTML = '<div class="name">' + escapeHtml(top.name) + '</div><div class="meta"><span class="tag">' + escapeHtml(top.tag || 'Jeu') + '</span><span class="added-by">Présenté par : ' + escapeHtml(presentedBy(top)) + '</span></div>';
+  const caption = document.createElement('div'); caption.className = 'card-caption'; caption.dataset.gid = cards[0].id;
+  caption.innerHTML = '<div class="name"></div><div class="meta"><span class="tag"></span><span class="added-by"></span>' +
+    '<button class="info-btn" type="button" aria-label="Description du jeu" title="Description du jeu">i</button></div><div class="desc"></div>';
+  const openTop = () => { if (Deck.els[0]) showInfoModal(Deck.els[0].dataset.gid); };
+  caption.querySelector('.info-btn').onclick = openTop;
+  caption.querySelector('.desc').onclick = openTop;
   wrap.appendChild(caption);
 
   const actions = document.createElement('div'); actions.className = 'deck-actions';
   const noBtn = document.createElement('button'); noBtn.className = 'round-btn no'; noBtn.textContent = '✕'; noBtn.setAttribute('aria-label', 'Non');
-  noBtn.onclick = () => animateDecision(stack.lastElementChild, cards[0].id, false);
+  noBtn.onclick = () => commitSwipe(false, { fromButton: true });
   const yesBtn = document.createElement('button'); yesBtn.className = 'round-btn yes'; yesBtn.textContent = '♥'; yesBtn.setAttribute('aria-label', 'Oui');
-  yesBtn.onclick = () => animateDecision(stack.lastElementChild, cards[0].id, true);
+  yesBtn.onclick = () => commitSwipe(true, { fromButton: true });
   actions.appendChild(noBtn); actions.appendChild(yesBtn);
   main.appendChild(wrap); main.appendChild(actions);
+
+  Deck.stack = stack;
+  syncDeck(false);
 }
 
-function animateDecision(topCard, gameId, liked) {
-  if (!topCard) { swipeGame(gameId, liked); return; }
-  deckAnimating = true;
-  topCard.style.transition = 'transform .55s cubic-bezier(.22,.61,.36,1), opacity .55s ease';
-  topCard.style.transform = 'translateX(' + (liked ? '150%' : '-150%') + ') translateY(-10px) rotate(' + (liked ? 22 : -22) + 'deg) scale(0.94)';
-  topCard.style.opacity = '0';
-  const stampEl = topCard.querySelector(liked ? '.stamp.yes' : '.stamp.no');
-  if (stampEl) { stampEl.style.opacity = '1'; stampEl.classList.add('punch'); }
-  swipeGame(gameId, liked);
-  setTimeout(() => { deckAnimating = false; if (currentTab === 'deck') renderMain(); }, 560);
+// Valide un swipe : la carte s'envole dans le sens du geste, la suivante remonte tout de suite.
+function commitSwipe(liked, info) {
+  info = info || {};
+  const card = Deck.els[0];
+  if (!card || card._leaving) return;
+  card._leaving = true;
+  card.classList.add('leaving'); card.classList.remove('is-top');
+  card.style.pointerEvents = 'none'; card.style.zIndex = '30';
+  Deck.els.shift(); Deck.leaving++;
+  swipeGame(card.dataset.gid, liked);
+
+  const dir = liked ? 1 : -1;
+  const width = card.getBoundingClientRect().width;
+  const endX = dir * (window.innerWidth + width) * 1.1;
+  const endY = Math.max(-180, Math.min(180, (info.dy || 0) + (info.vy || 0) * 260)) + (info.fromButton ? -28 : 0);
+  const endRot = dir * (info.fromButton ? 24 : 32);
+  const speed = Math.abs(info.vx || 0);
+  const dur = info.fromButton ? 420 : speed > 1.4 ? 240 : speed > 0.7 ? 300 : 360;
+
+  const yes = card.querySelector('.stamp.yes'), no = card.querySelector('.stamp.no');
+  (liked ? yes : no).style.opacity = '1'; (liked ? no : yes).style.opacity = '0';
+  if (info.fromButton) {            // départ propre, dans la même famille de transformations
+    card.style.transition = 'none'; card.style.transformOrigin = '50% 90%';
+    card.style.transform = 'translate3d(0px,0px,0) rotate(0deg)';
+  }
+  void card.offsetWidth;
+  card.style.transition = 'transform ' + dur + 'ms cubic-bezier(.25,.7,.35,1)';
+  card.style.transform = 'translate3d(' + endX.toFixed(1) + 'px,' + endY.toFixed(1) + 'px,0) rotate(' + endRot + 'deg)';
+  setTimeout(() => { card.remove(); Deck.leaving--; flushDirty(); }, dur + 60);
+
+  if (currentTab === 'deck' && Deck.stack) {
+    if (!myUnswiped().length) { Deck.dirty = true; refreshInfo(); }   // dernier jeu : l'écran de fin s'affiche après l'envol
+    else syncDeck(true);
+  }
 }
 
-function attachSwipeGestures(card, gameId) {
-  let startX=0, startY=0, dx=0, dragging=false;
-  const stampYes = card.querySelector('.stamp.yes'), stampNo = card.querySelector('.stamp.no');
-  function onDown(e) {
-    dragging = true; startX = e.clientX; startY = e.clientY; dx = 0; card.style.transition = 'none';
-    try { card.setPointerCapture(e.pointerId); } catch (err) {}
-  }
-  function onMove(e) {
-    if (!dragging) return;
-    dx = e.clientX - startX; const dy = e.clientY - startY; const rot = dx/18;
-    card.style.transform = 'translate('+dx+'px,'+dy+'px) rotate('+rot+'deg)';
-    const t = Math.min(Math.abs(dx)/90, 1);
-    if (dx > 0) { stampYes.style.opacity=t; stampNo.style.opacity=0; } else { stampNo.style.opacity=t; stampYes.style.opacity=0; }
-    e.preventDefault && e.cancelable && e.preventDefault();
-  }
-  function onUp() {
-    if (!dragging) return; dragging = false;
-    if (Math.abs(dx) > 90) {
-      const liked = dx > 0; deckAnimating = true;
-      card.style.transition = 'transform .55s cubic-bezier(.22,.61,.36,1), opacity .55s ease';
-      card.style.transform = 'translateX('+(liked?'150%':'-150%')+') translateY(-10px) rotate('+(liked?22:-22)+'deg) scale(0.94)';
-      card.style.opacity = '0';
-      const stampEl = liked ? stampYes : stampNo; stampEl.style.opacity='1'; stampEl.classList.add('punch');
-      swipeGame(gameId, liked);
-      setTimeout(() => { deckAnimating = false; if (currentTab === 'deck') renderMain(); }, 560);
-    } else {
-      card.style.transition = 'transform .32s cubic-bezier(.34,1.56,.64,1)';
-      card.style.transform = 'translate(0,0) rotate(0)';
-      stampYes.style.opacity=0; stampNo.style.opacity=0;
-    }
-    dx = 0;
-  }
-  card.addEventListener('pointerdown', onDown);
-  card.addEventListener('pointermove', onMove);
-  card.addEventListener('pointerup', onUp);
-  card.addEventListener('pointercancel', onUp);
+function applyDrag(card, dx, dy, w) {
+  const rot = Math.max(-24, Math.min(24, dx / w * 24));
+  card.style.transform = 'translate3d(' + dx.toFixed(1) + 'px,' + dy.toFixed(1) + 'px,0) rotate(' + rot.toFixed(2) + 'deg)';
+  const p = Math.min(Math.abs(dx) / Math.max(70, w * 0.28), 1);
+  card.querySelector('.stamp.yes').style.opacity = dx > 0 ? p.toFixed(2) : '0';
+  card.querySelector('.stamp.no').style.opacity = dx < 0 ? p.toFixed(2) : '0';
+  Deck.els.slice(1).forEach((el, i) => { el.style.transition = 'none'; el.style.transform = depthTransform(i + 1, p); });
+}
+function snapBack(card) {
+  card.style.transition = 'transform .4s cubic-bezier(.34,1.56,.64,1)';
+  card.style.transform = depthTransform(0);
+  card.querySelectorAll('.stamp').forEach(st => { st.style.opacity = '0'; });
+  Deck.els.slice(1).forEach((el, i) => { el.style.transition = 'transform .3s ease'; el.style.transform = depthTransform(i + 1); });
+}
+
+function attachSwipeGestures(card) {
+  let pid = null, sx = 0, sy = 0, dx = 0, dy = 0, w = 300, samples = [];
+  card.addEventListener('pointerdown', e => {
+    if (card !== Deck.els[0] || card._leaving || pid !== null) return;
+    if (e.pointerType === 'mouse' && e.button !== 0) return;
+    pid = e.pointerId; sx = e.clientX; sy = e.clientY; dx = 0; dy = 0;
+    samples = [{ x: e.clientX, y: e.clientY, t: performance.now() }];
+    w = card.getBoundingClientRect().width || 300;
+    Deck.dragging = true;
+    card.style.transition = 'none'; card.style.transformOrigin = '50% 90%';
+    try { card.setPointerCapture(pid); } catch (err) {}
+  });
+  card.addEventListener('pointermove', e => {
+    if (e.pointerId !== pid) return;
+    dx = e.clientX - sx; dy = e.clientY - sy;
+    const now = performance.now();
+    samples.push({ x: e.clientX, y: e.clientY, t: now });
+    while (samples.length > 2 && now - samples[0].t > 90) samples.shift();
+    applyDrag(card, dx, dy, w);
+  });
+  const end = e => {
+    if (e.pointerId !== pid) return;
+    try { card.releasePointerCapture(pid); } catch (err) {}
+    pid = null; Deck.dragging = false;
+    const a = samples[0], b = samples[samples.length - 1], dt = Math.max(b.t - a.t, 1);
+    const vx = (b.x - a.x) / dt, vy = (b.y - a.y) / dt;
+    const thr = Math.max(70, w * 0.28);
+    const far = Math.abs(dx) > thr, flick = Math.abs(vx) > 0.5 && Math.abs(dx) > 28;
+    if (e.type !== 'pointercancel' && (far || flick)) commitSwipe(far ? dx > 0 : vx > 0, { dx, dy, vx, vy });
+    else snapBack(card);
+    flushDirty();
+  };
+  card.addEventListener('pointerup', end);
+  card.addEventListener('pointercancel', end);
   card.addEventListener('dragstart', e => e.preventDefault());
+}
+
+document.addEventListener('keydown', e => {
+  if (currentTab !== 'deck' || e.metaKey || e.ctrlKey || e.altKey) return;
+  const tag = (document.activeElement && document.activeElement.tagName) || '';
+  if (/INPUT|TEXTAREA|SELECT/.test(tag) || document.getElementById('modalOverlay') || document.getElementById('gate')) return;
+  if (e.key === 'ArrowRight') { e.preventDefault(); commitSwipe(true, { fromButton: true }); }
+  else if (e.key === 'ArrowLeft') { e.preventDefault(); commitSwipe(false, { fromButton: true }); }
+});
+
+// ---------------------------------------------------------------
+// Description des jeux (tirée de la page Steam, mémorisée dans la salle)
+// ---------------------------------------------------------------
+const infoCache = {};
+let focusGameId = null;
+let infoModalGid = null;
+const isWide = () => window.matchMedia && matchMedia('(min-width: 1100px)').matches;
+
+function infoOf(g) {
+  if (g.desc) return { state: 'ok', desc: g.desc, genres: g.genres || [], dev: g.dev || '', released: g.released || '' };
+  if (g.infoTs) return { state: 'none' };
+  return infoCache[g.id] || { state: 'loading' };
+}
+function infoHtml(g) {
+  const i = infoOf(g);
+  const head = '<div class="info-kicker"></div><h3 class="info-title">' + escapeHtml(g.name) + '</h3>';
+  if (i.state === 'loading') return head + '<div class="info-skel"><i></i><i></i><i></i></div>';
+  if (i.state === 'none') return head + '<p class="info-desc dim">Pas de description disponible pour ce jeu.</p>';
+  const genres = i.genres.length ? '<div class="info-genres">' + i.genres.map(x => '<span>' + escapeHtml(x) + '</span>').join('') + '</div>' : '';
+  const meta = [i.dev, i.released ? 'Sortie : ' + i.released : ''].filter(Boolean).join(' · ');
+  return head + '<p class="info-desc">' + escapeHtml(i.desc) + '</p>' + genres +
+    (meta ? '<div class="info-meta">' + escapeHtml(meta) + '</div>' : '') + '<div class="info-src">Source : page Steam</div>';
+}
+async function ensureInfo(g) {
+  if (!g || g.desc || g.infoTs || infoCache[g.id]) return;
+  infoCache[g.id] = { state: 'loading' };
+  let appid = g.appid || null, found = null, failed = false;
+  try {
+    if (!appid) {
+      const r0 = await fetch('/api/steam-cover?name=' + encodeURIComponent(g.name));
+      if (!r0.ok) failed = true;
+      else { const c = await r0.json(); if (c && c.found && c.appid) appid = c.appid; }
+    }
+    if (appid && !failed) {
+      const r = await fetch('/api/steam-info?appid=' + encodeURIComponent(appid));
+      if (!r.ok) failed = true;
+      else { const d = await r.json(); if (d && d.found && d.description) found = d; else if (d && d.error) failed = true; }
+    }
+  } catch (e) { failed = true; }
+  if (found) {
+    infoCache[g.id] = { state: 'ok', desc: found.description, genres: found.genres || [], dev: found.developer || '', released: found.released || '' };
+    gamesCol().doc(g.id).update({ desc: found.description, genres: found.genres || [], dev: found.developer || '', released: found.released || '', appid: appid || null, infoTs: Date.now() }).catch(() => {});
+  } else {
+    infoCache[g.id] = { state: 'none' };
+    if (!failed) gamesCol().doc(g.id).update({ desc: '', infoTs: Date.now() }).catch(() => {});
+  }
+  refreshInfo();
+}
+function infoTargetGame() {
+  if (currentTab === 'deck') return Deck.els[0] ? gameById(Deck.els[0].dataset.gid) : null;
+  return gameById(focusGameId);
+}
+// Met à jour les trois endroits où la description peut s'afficher :
+// panneau latéral (grand écran), aperçu sous le nom (téléphone) et fenêtre d'infos.
+function refreshInfo() {
+  const g = infoTargetGame();
+  const side = document.getElementById('infoSide');
+  if (side) {
+    const html = g ? '<div class="info-card">' + infoHtml(g) + '</div>'
+      : (currentTab === 'deck' ? '' : '<div class="info-card"><div class="info-kicker"></div><p class="info-desc dim">Touche un jeu pour voir sa description.</p></div>');
+    if (side._html !== html) { side.innerHTML = html; side._html = html; }
+  }
+  const desc = document.querySelector('.card-caption .desc');
+  if (desc) { const i = g && infoOf(g); const t = i && i.state === 'ok' ? i.desc : ''; if (desc.textContent !== t) desc.textContent = t; }
+  const mc = document.getElementById('infoModalCard');
+  if (mc) { const mg = gameById(infoModalGid); if (mg) { const html = infoHtml(mg); if (mc._html !== html) { mc.innerHTML = html; mc._html = html; } ensureInfo(mg); } }
+  else infoModalGid = null;
+  if (g) ensureInfo(g);
+  if (currentTab === 'deck' && Deck.els[1]) ensureInfo(gameById(Deck.els[1].dataset.gid));
+}
+function showInfoModal(gid) {
+  if (!gameById(gid)) return;
+  closeModal();
+  infoModalGid = gid;
+  const ov = document.createElement('div'); ov.className = 'modal-overlay'; ov.id = 'modalOverlay';
+  const box = document.createElement('div'); box.className = 'modal-box modal-info';
+  box.innerHTML = '<div class="info-card" id="infoModalCard"></div><div class="btn-row" style="margin-top:12px;"><button class="btn btn-primary" id="mClose">Fermer</button></div>';
+  ov.appendChild(box);
+  ov.addEventListener('click', e => { if (e.target === ov) { infoModalGid = null; closeModal(); } });
+  document.body.appendChild(ov);
+  box.querySelector('#mClose').onclick = () => { infoModalGid = null; closeModal(); };
+  refreshInfo();
+}
+// Bibliothèque / matchs : un jeu touché s'affiche dans le panneau latéral (grand écran) ou dans la fenêtre d'infos.
+function openInfo(gid) {
+  if (isWide()) { focusGameId = gid; markFocused(); refreshInfo(); }
+  else showInfoModal(gid);
+}
+function markFocused() {
+  document.querySelectorAll('[data-gid]').forEach(el => { if (!el.classList.contains('swipe-card')) el.classList.toggle('focused', el.dataset.gid === focusGameId); });
 }
 
 // Le formulaire (ajout, lien Steam, collage) vit dans un élément persistant : il survit
@@ -1333,11 +1649,12 @@ function refreshLibraryList(main) {
 function buildGameList(games) {
   const list = document.createElement('div'); list.className = 'game-list';
   games.forEach(g => {
-    const row = document.createElement('div'); row.className = 'game-row';
+    const row = document.createElement('div'); row.className = 'game-row' + (g.id === focusGameId ? ' focused' : ''); row.dataset.gid = g.id;
     row.innerHTML = '<div class="g-cover">'+coverHtml(g,{small:true})+'</div>' +
       '<div class="g-main"><div class="g-name">'+escapeHtml(g.name)+'</div><div class="g-by">Par '+escapeHtml(presentedBy(g))+'</div></div>' +
       '<span class="g-tag">'+escapeHtml(g.tag||'Autre')+'</span>' +
       '<button class="icon-btn" title="Retirer" aria-label="Retirer">'+ICON_TRASH+'</button>';
+    row.addEventListener('click', e => { if (!e.target.closest('.icon-btn')) openInfo(g.id); });
     row.querySelector('.icon-btn').onclick = () => showConfirm('Retirer « '+g.name+' » de la bibliothèque ?', 'Retirer', () => removeGame(g.id));
     list.appendChild(row);
   });
@@ -1346,7 +1663,8 @@ function buildGameList(games) {
 function buildGameGrid(games) {
   const grid = document.createElement('div'); grid.className = 'game-grid';
   games.forEach(g => {
-    const item = document.createElement('div'); item.className = 'grid-item';
+    const item = document.createElement('div'); item.className = 'grid-item' + (g.id === focusGameId ? ' focused' : ''); item.dataset.gid = g.id;
+    item.addEventListener('click', e => { if (!e.target.closest('.grid-del')) openInfo(g.id); });
     item.innerHTML = '<div class="grid-cover">'+coverHtml(g,{small:true})+'<button class="grid-del" title="Retirer" aria-label="Retirer">✕</button></div>' +
       '<div class="grid-name">'+escapeHtml(g.name)+'</div><div class="grid-by">'+escapeHtml(presentedBy(g))+'</div>';
     item.querySelector('.grid-del').onclick = e => { e.stopPropagation(); showConfirm('Retirer « '+g.name+' » de la bibliothèque ?', 'Retirer', () => removeGame(g.id)); };
@@ -1477,7 +1795,8 @@ function renderMatches(main) {
   if (!stats.length) { main.appendChild(infoBox('Pas encore de match', 'Dès que plusieurs d\'entre vous auront aimé le même jeu, il apparaîtra ici.')); return; }
   const list = document.createElement('div'); list.className = 'match-list';
   stats.forEach(m => {
-    const row = document.createElement('div'); row.className = 'match-row' + (m.full ? ' full' : '');
+    const row = document.createElement('div'); row.className = 'match-row' + (m.full ? ' full' : '') + (m.game.id === focusGameId ? ' focused' : ''); row.dataset.gid = m.game.id;
+    row.addEventListener('click', () => openInfo(m.game.id));
     const names = m.likers.map(l => l.playerName).filter(Boolean).join(', ');
     row.innerHTML = '<div class="g-cover" style="width:44px;height:44px;">'+coverHtml(m.game,{small:true})+'</div>' +
       '<div class="m-body"><div class="m-name">'+escapeHtml(m.game.name)+'</div><div class="m-score">'+m.count+' sur '+m.denom+' — '+escapeHtml(names)+'</div></div>' +
@@ -1487,8 +1806,24 @@ function renderMatches(main) {
   main.appendChild(list);
 }
 
+const TAB_ORDER = ['deck', 'library', 'matches'];
+function playPageIn(dir) {
+  const main = document.getElementById('main');
+  main.classList.remove('page-in-r', 'page-in-l'); void main.offsetWidth;
+  main.classList.add('page-in-' + dir);
+  const done = e => { if (e && e.target !== main) return; main.classList.remove('page-in-r', 'page-in-l'); main.removeEventListener('animationend', done); };
+  main.addEventListener('animationend', done);
+  setTimeout(() => done(null), 700);
+}
 document.querySelectorAll('nav.tabbar .tab').forEach(tab => {
-  tab.addEventListener('click', () => { currentTab = tab.dataset.tab; renderAll(); });
+  tab.addEventListener('click', () => {
+    const next = tab.dataset.tab;
+    if (next === currentTab) return;
+    const dir = TAB_ORDER.indexOf(next) > TAB_ORDER.indexOf(currentTab) ? 'r' : 'l';
+    currentTab = next;
+    renderAll();
+    playPageIn(dir);
+  });
 });
 document.getElementById('themeBtn').addEventListener('click', () => {
   const keys = Object.keys(THEMES);
