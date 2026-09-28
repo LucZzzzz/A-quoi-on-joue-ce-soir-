@@ -518,8 +518,11 @@ function renderDeck(main) {
   wrap.appendChild(stack);
 
   const visible = cards.slice(0, 3);
-  visible.forEach((g, i) => {
-    const depth = visible.length - 1 - i;
+  // On construit de la plus lointaine à la plus proche : la dernière carte
+  // ajoutée (donc celle du dessus) est visible[0], le même jeu que le titre
+  // affiché dessous et que les boutons ✕/♥.
+  for (let depth = visible.length - 1; depth >= 0; depth--) {
+    const g = visible[depth];
     const card = document.createElement('div');
     card.className = 'swipe-card' + (depth === 0 ? ' card-enter' : '');
     card.style.transform = 'scale(' + (1 - depth * 0.045) + ') translateY(' + (depth * 10) + 'px)';
@@ -527,7 +530,7 @@ function renderDeck(main) {
     card.innerHTML = coverHtml(g) + '<div class="stamp yes">OUI</div><div class="stamp no">NON</div>';
     if (depth === 0) attachSwipeGestures(card, g.id);
     stack.appendChild(card);
-  });
+  }
 
   const top = cards[0];
   const caption = document.createElement('div'); caption.className = 'card-caption';
