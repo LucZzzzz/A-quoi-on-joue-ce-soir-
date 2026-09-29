@@ -78,8 +78,53 @@
   .modal-box.modal-info::before { display: none !important; }
   .game-row, .grid-item, .match-row { cursor: pointer; }
 
+  /* ===== Roulette « Chef de soirée » — structure commune aux 3 thèmes ===== */
+  .roulette-wrap { display: flex; flex-direction: column; min-height: 0; }
+  .roul-stage { position: relative; margin: 14px 0 18px; }
+  .roul-track-outer { position: relative; overflow: hidden; height: 128px; border-radius: 14px; }
+  .roul-track { position: absolute; top: 0; left: 0; height: 100%; display: flex; align-items: center; gap: 10px; padding: 0 10px; will-change: transform; }
+  .roul-track.blur { filter: blur(2.5px); }
+  .roul-marker { position: absolute; left: 50%; top: -6px; bottom: -6px; width: 3px; margin-left: -1.5px; z-index: 5; pointer-events: none; }
+  .roul-marker::before, .roul-marker::after { content: ''; position: absolute; left: 50%; width: 0; height: 0; border: 7px solid transparent; margin-left: -7px; }
+  .roul-marker::before { top: -8px; border-top: none; border-bottom-width: 9px; }
+  .roul-marker::after { bottom: -8px; border-bottom: none; border-top-width: 9px; }
+  .roul-card { flex: none; width: 96px; height: 108px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; border-radius: 12px; transition: opacity .5s ease, transform .5s ease, filter .5s ease; }
+  .roul-card .roul-avatar { width: 52px; height: 52px; }
+  .roul-card .roul-avatar svg { width: 100%; height: 100%; display: block; }
+  .roul-card .roul-name { font-size: 12px; font-weight: 700; max-width: 88px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; text-align: center; }
+  .roul-card.roul-fade { opacity: 0.12; filter: blur(2px) grayscale(1); transform: scale(0.92); pointer-events: none; }
+  .roul-card.roul-drop { transition: transform .65s cubic-bezier(.55,-0.3,.7,.1), opacity .6s ease .05s; transform: translateY(160px) rotate(30deg); opacity: 0; pointer-events: none; }
+  .roul-half { pointer-events: none; overflow: hidden; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; transition: transform .6s cubic-bezier(.33,0,.2,1), opacity .6s ease; }
+  .roul-half .roul-avatar { width: 52px; height: 52px; } .roul-half .roul-avatar svg { width: 100%; height: 100%; }
+  .roul-half .roul-name { font-size: 12px; font-weight: 700; }
+  .roul-half-top { clip-path: polygon(0 0, 100% 0, 100% 55%, 0 45%); }
+  .roul-half-bottom { clip-path: polygon(0 45%, 100% 55%, 100% 100%, 0 100%); }
+  .roul-half.go.roul-half-top { transform: translate(-16px, -26px) rotate(-7deg); opacity: 0; }
+  .roul-half.go.roul-half-bottom { transform: translate(16px, 26px) rotate(7deg); opacity: 0; }
+  .roul-launch { width: 100%; }
+  .roul-result { min-height: 4px; }
+  .roul-chief-banner { display: flex; align-items: center; gap: 14px; margin-top: 16px; padding: 16px; border-radius: 14px; opacity: 0; transform: translateY(8px) scale(.98); animation: roulBannerIn .5s cubic-bezier(.2,.9,.3,1.3) forwards; }
+  @keyframes roulBannerIn { to { opacity: 1; transform: none; } }
+  .roul-chief-banner .roul-chief-avatar { width: 56px; height: 56px; flex: none; } .roul-chief-banner .roul-chief-avatar svg { width: 100%; height: 100%; }
+  .roul-chief-banner .roul-chief-kicker { font-size: 11.5px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; opacity: .75; }
+  .roul-chief-banner .roul-chief-name { font-size: 21px; font-weight: 800; }
+  .roul-chosen-banner { display: flex; align-items: center; gap: 16px; margin-top: 18px; padding: 16px; border-radius: 14px; }
+  .roul-chosen-cover { width: 84px; aspect-ratio: 3/4; flex: none; border-radius: 10px; overflow: hidden; position: relative; }
+  .roul-chosen-kicker { font-size: 12px; font-weight: 700; letter-spacing: .07em; text-transform: uppercase; opacity: .75; margin-bottom: 4px; }
+  .roul-chosen-name { font-size: 20px; font-weight: 800; line-height: 1.15; }
+
+  /* Grand pop-up du Chef pour valider un jeu */
+  .chief-modal { position: relative; width: min(92vw, 480px); max-height: 88vh; overflow-y: auto; border-radius: 18px; padding: 0; }
+  .chief-modal-close { position: absolute; top: 10px; right: 10px; z-index: 4; width: 34px; height: 34px; border-radius: 50%; border: none; background: rgba(0,0,0,0.45); color: #fff; font-size: 16px; cursor: pointer; display: flex; align-items: center; justify-content: center; }
+  .chief-modal-cover { position: relative; width: 100%; aspect-ratio: 16/9; overflow: hidden; }
+  .chief-modal-body { padding: 18px 20px 22px; }
+  .chief-modal-body h3 { margin: 0 0 8px; font-size: 22px; line-height: 1.2; }
+  .chief-modal-body .info-desc { margin: 10px 0 16px; }
+  .chief-validate { width: 100%; font-size: 15px; padding: 14px; }
+
   @media (prefers-reduced-motion: reduce) {
     main.page-in-r, main.page-in-l, .card-caption.swap, .info-skel i { animation: none; }
+    .roul-track { transition: none !important; }
   }
 </style>
 <style id="theme-flat">
@@ -101,6 +146,7 @@
     --ic-deck: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='1.8' stroke-linejoin='round' stroke-linecap='round'><rect x='6.5' y='4' width='11' height='16' rx='2.5'/><path d='M3 7.5v9M21 7.5v9'/></svg>");
     --ic-library: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='1.8' stroke-linejoin='round'><rect x='4' y='4' width='6.5' height='6.5' rx='1.5'/><rect x='13.5' y='4' width='6.5' height='6.5' rx='1.5'/><rect x='4' y='13.5' width='6.5' height='6.5' rx='1.5'/><rect x='13.5' y='13.5' width='6.5' height='6.5' rx='1.5'/></svg>");
     --ic-matches: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='1.8' stroke-linejoin='round'><path d='M12 20s-7.5-4.6-7.5-10.2A4.2 4.2 0 0 1 12 7.4a4.2 4.2 0 0 1 7.5 2.4C19.5 15.4 12 20 12 20z'/></svg>");
+    --ic-roulette: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='1.8' stroke-linejoin='round'><circle cx='12' cy='12' r='8.5'/><circle cx='12' cy='7.2' r='1.15' fill='black' stroke='none'/><circle cx='16.8' cy='12' r='1.15' fill='black' stroke='none'/><circle cx='12' cy='16.8' r='1.15' fill='black' stroke='none'/><circle cx='7.2' cy='12' r='1.15' fill='black' stroke='none'/></svg>");
     box-sizing: border-box;
     padding-top: env(safe-area-inset-top, 0px);
     padding-bottom: env(safe-area-inset-bottom, 0px);
@@ -253,6 +299,7 @@
   nav.tabbar .tab[data-tab=deck] .ic::before { --ic: var(--ic-deck); }
   nav.tabbar .tab[data-tab=library] .ic::before { --ic: var(--ic-library); }
   nav.tabbar .tab[data-tab=matches] .ic::before { --ic: var(--ic-matches); }
+  nav.tabbar .tab[data-tab=roulette] .ic::before { --ic: var(--ic-roulette); }
   nav.tabbar .tab .lb { font-size: 11.5px; font-weight: 600; display: block; margin-top: 2px; }
 
   .toast { position: fixed; left: 50%; top: calc(14px + env(safe-area-inset-top, 0px)); transform: translateX(-50%) translateY(-8px); background: var(--text); color: var(--bg); padding: 10px 16px; border-radius: 10px; font-size: 14px; line-height: 1.3; opacity: 0; transition: opacity .18s ease, transform .18s ease; pointer-events: none; z-index: 50; max-width: 90%; text-align: center; }
@@ -287,6 +334,21 @@
   .card-caption .desc { font-size: 13.5px; line-height: 1.4; color: var(--dim); margin-top: 8px; }
   .info-btn { margin-left: auto; flex: none; width: 24px; height: 24px; padding: 0; border-radius: 50%; border: 1px solid var(--line); background: var(--surface); color: var(--dim); font: 600 13px/1 var(--font); cursor: pointer; }
   .game-row.focused, .grid-item.focused .grid-cover, .match-row.focused { border-color: var(--accent); }
+
+  /* ---- Roulette : habillage flat ---- */
+  .roul-track-outer { background: var(--surface); border: 1px solid var(--line); }
+  .roul-marker::before { border-bottom-color: var(--accent); } .roul-marker::after { border-top-color: var(--accent); }
+  .roul-marker { background: var(--accent); opacity: .8; }
+  .roul-card { background: var(--surface-2); color: var(--text); }
+  .roul-card.roul-winner { animation: roulGlowFlat .9s ease; }
+  @keyframes roulGlowFlat { 0% { box-shadow: 0 0 0 0 var(--accent); transform: scale(1); } 40% { box-shadow: 0 0 0 10px transparent; transform: scale(1.14); } 100% { box-shadow: 0 0 0 0 transparent; transform: scale(1.08); } }
+  .roul-half { background: var(--surface-2); border-radius: 12px; }
+  .roul-chief-banner, .roul-chosen-banner { background: linear-gradient(135deg, color-mix(in srgb, var(--accent) 16%, var(--surface)), var(--surface)); border: 1px solid var(--line); }
+  .roul-chief-banner .roul-chief-kicker, .roul-chosen-kicker { color: var(--accent); }
+  .roul-chief-avatar, .roul-chosen-cover { box-shadow: 0 0 0 3px var(--surface), 0 0 0 4px var(--accent); border-radius: 50%; }
+  .roul-chosen-cover { border-radius: 10px; box-shadow: none; border: 1px solid var(--line); }
+  .chief-modal { background: var(--surface); border: 1px solid var(--line); box-shadow: 0 30px 70px rgba(0,0,0,.35); }
+  .chief-modal-body .info-genres span { background: var(--surface-2); color: var(--dim); }
 </style>
 <style id="theme-mh" media="not all">
   :root {
@@ -486,6 +548,7 @@
   nav.tabbar .tab[data-tab=deck] .ic::before { content: '\2694\FE0E'; }
   nav.tabbar .tab[data-tab=library] .ic::before { content: '\2756'; }
   nav.tabbar .tab[data-tab=matches] .ic::before { content: '\272A'; }
+  nav.tabbar .tab[data-tab=roulette] .ic::before { content: '\1F3B2'; }
   nav.tabbar .tab .lb { font-family: var(--font-caps); font-weight: 700; font-size: 13.5px; letter-spacing: 0.07em; display: block; margin-top: 1px; }
 
   /* Bannière façon « quête accomplie » */
@@ -527,6 +590,24 @@
   .game-row.focused { border-color: var(--gold-hi); box-shadow: 0 0 0 1px var(--gold-hi), 0 3px 0 rgba(0,0,0,0.42); }
   .grid-item.focused .grid-cover { box-shadow: 0 0 0 2px var(--gold-hi), 0 5px 0 rgba(0,0,0,0.45); }
   .match-row.focused { box-shadow: inset 0 0 26px rgba(120, 80, 30, 0.38), 0 0 0 2px var(--gold-hi); }
+
+  /* ---- Roulette : habillage Monster Hunter ---- */
+  .roul-track-outer { background: linear-gradient(180deg, rgba(0,0,0,.25), rgba(0,0,0,.4)); border: 3px solid var(--gold); box-shadow: inset 0 0 26px rgba(0,0,0,.5); }
+  .roul-marker { background: var(--gold-hi); box-shadow: 0 0 10px var(--gold-hi); }
+  .roul-marker::before { border-bottom-color: var(--gold-hi); } .roul-marker::after { border-top-color: var(--gold-hi); }
+  .roul-card { background: var(--parchment); border: 2px solid var(--bronze); box-shadow: 0 3px 0 rgba(0,0,0,.4); }
+  .roul-card .roul-name { color: var(--ink); }
+  .roul-card.roul-winner { box-shadow: 0 0 0 3px var(--gold-hi), 0 0 22px rgba(242,203,105,.7); }
+  .roul-half { background: var(--parchment); border: 2px solid var(--bronze); border-radius: 3px; }
+  .roul-half .roul-name { color: var(--ink); }
+  .roul-chief-banner, .roul-chosen-banner { background: var(--parchment); border: 2px solid var(--bronze); box-shadow: var(--parch-shadow); color: var(--ink); }
+  .roul-chief-banner .roul-chief-kicker, .roul-chosen-kicker { color: var(--wax); }
+  .roul-chief-avatar { border-radius: 50%; box-shadow: 0 0 0 3px var(--gold); }
+  .roul-chosen-cover { border-radius: 3px; border: 2px solid var(--gold); }
+  .chief-modal { background: var(--parchment); border: 3px solid var(--bronze); box-shadow: var(--parch-shadow), 0 0 0 3px rgba(0,0,0,.5); color: var(--ink); }
+  .chief-modal-body h3 { font-family: var(--font-display); font-weight: 400; }
+  .chief-modal-body .info-genres span { background: var(--bronze); color: var(--parch); }
+  .chief-validate { background: linear-gradient(180deg, #F2CB69, #C99A3B 60%, #A97A25); color: #2B1A08; border-color: #7A5217; }
 </style>
 <style id="theme-repo" media="not all">
   :root {
@@ -766,6 +847,7 @@
   nav.tabbar .tab[data-tab=deck] .ic::before { content: '\25C8'; }
   nav.tabbar .tab[data-tab=library] .ic::before { content: '\25A4'; }
   nav.tabbar .tab[data-tab=matches] .ic::before { content: '\2605'; }
+  nav.tabbar .tab[data-tab=roulette] .ic::before { content: '\29BE'; }
 
   /* ---- Description du jeu ---- */
   :root { --page-dur: .28s; --page-ease: steps(6, end); --page-shift: 18px; --swap-dur: .24s; --swap-ease: steps(5, end); }
@@ -784,6 +866,23 @@
   .info-btn { margin-left: auto; flex: none; width: 24px; height: 24px; padding: 0; border: 2px solid #000; background: var(--yellow); color: #1A1400; font: 700 14px/1 var(--font-display); box-shadow: 2px 2px 0 #000; cursor: pointer; }
   .game-row.focused, .match-row.focused { border-color: var(--orange); }
   .grid-item.focused .grid-cover { outline-color: var(--orange); }
+
+  /* ---- Roulette : habillage R.E.P.O. ---- */
+  .roul-track-outer { background: var(--panel); border: 2px solid var(--line-hi); box-shadow: 4px 4px 0 #000; }
+  .roul-marker { background: var(--orange); } .roul-marker::before { border-bottom-color: var(--orange); } .roul-marker::after { border-top-color: var(--orange); }
+  .roul-card { background: var(--panel-2); border: 2px solid #000; box-shadow: 3px 3px 0 #000; border-radius: 0; }
+  .roul-card .roul-name { font-family: var(--font-mono); font-size: 15px; color: var(--text); }
+  .roul-card.roul-winner { border-color: var(--orange); box-shadow: 3px 3px 0 #000, 0 0 0 2px var(--orange); }
+  .roul-half { background: var(--panel-2); border: 2px solid #000; border-radius: 0; }
+  .roul-half .roul-name { font-family: var(--font-mono); font-size: 15px; }
+  .roul-chief-banner, .roul-chosen-banner { background: var(--panel); border: 2px solid var(--line-hi); box-shadow: 4px 4px 0 #000; }
+  .roul-chief-banner .roul-chief-kicker, .roul-chosen-kicker { font-family: var(--font-mono); color: var(--orange); }
+  .roul-chief-banner .roul-chief-name, .roul-chosen-name { font-family: var(--font-display); }
+  .roul-chief-avatar, .roul-chosen-cover { border: 2px solid #000; border-radius: 0; box-shadow: 3px 3px 0 #000; }
+  .chief-modal { background: var(--panel); border: 3px solid var(--line-hi); box-shadow: 6px 6px 0 #000; border-radius: 0; }
+  .chief-modal-body h3 { font-family: var(--font-display); }
+  .chief-modal-body .info-genres span { font-family: var(--font-mono); background: var(--yellow); color: #1A1400; }
+  .chief-validate { background: var(--orange); color: #1A1000; border-color: #000; }
 </style>
 <script>(function(){try{var t=localStorage.getItem("gn_theme2");if(t&&t!=="flat"&&document.getElementById("theme-"+t)){["flat","mh","repo"].forEach(function(k){document.getElementById("theme-"+k).media=(k===t?"all":"not all");});var m=document.querySelector("meta[name=theme-color]");if(m)m.setAttribute("content",{mh:"#2B1C12",repo:"#0E1115"}[t]);}}catch(e){}})();</script>
 </head>
@@ -805,6 +904,7 @@
     <div class="tab active" data-tab="deck"><span class="ic"></span><span class="lb">Swiper</span></div>
     <div class="tab" data-tab="library"><span class="ic"></span><span class="lb">Bibliothèque</span></div>
     <div class="tab" data-tab="matches"><span class="ic"></span><span class="lb">Matchs</span></div>
+    <div class="tab" data-tab="roulette"><span class="ic"></span><span class="lb">Roulette</span></div>
   </nav>
 </div>
 <aside class="info-side" id="infoSide" aria-live="polite"></aside>
@@ -1394,10 +1494,12 @@ function renderHeader() {
 function renderMain(force) {
   const main = document.getElementById('main');
   document.querySelectorAll('.tab').forEach(t => t.classList.toggle('active', t.dataset.tab === currentTab));
+  if (currentTab === 'roulette' && rouletteSpinning && main.dataset.view === 'roulette' && main.querySelector('#roulTrack')) return;
   if (force || main.dataset.view !== currentTab) { main.innerHTML = ''; main.dataset.view = ''; main.dataset.sig = ''; }
   if (currentTab === 'deck') renderDeck(main);
   else if (currentTab === 'library') renderLibrary(main);
-  else renderMatches(main);
+  else if (currentTab === 'matches') renderMatches(main);
+  else renderRoulette(main);
   main.dataset.view = currentTab;
 }
 function renderAll() { renderHeader(); renderMain(); refreshInfo(); }
@@ -2151,7 +2253,217 @@ function buildMatchGrid(stats) {
   return grid;
 }
 
-const TAB_ORDER = ['deck', 'library', 'matches'];
+// ---------------------------------------------------------------
+// Roulette « Chef de soirée » — un 4e onglet qui tire au sort une
+// personne présente, façon ouverture de caisse (défilement horizontal,
+// résultat déterminé avant l'animation), avec un habillage propre à
+// chaque thème. Le Chef peut ensuite valider un jeu parmi les matchs ;
+// cette validation réutilise gameById/coverHtml/matchStats déjà en place.
+// ---------------------------------------------------------------
+let rouletteSpinning = false;
+function isChief() { return !!(State.room && State.room.chief && State.room.chief.id === myId); }
+
+function renderRoulette(main) {
+  main.innerHTML = '';
+  const wrap = document.createElement('div'); wrap.className = 'roulette-wrap';
+  main.appendChild(wrap);
+
+  const title = document.createElement('div'); title.className = 'section-title ornate'; title.textContent = 'Chef de soirée';
+  wrap.appendChild(title);
+
+  const stage = document.createElement('div'); stage.className = 'roul-stage';
+  const trackOuter = document.createElement('div'); trackOuter.className = 'roul-track-outer';
+  const track = document.createElement('div'); track.className = 'roul-track'; track.id = 'roulTrack';
+  trackOuter.appendChild(track);
+  const marker = document.createElement('div'); marker.className = 'roul-marker';
+  trackOuter.appendChild(marker);
+  stage.appendChild(trackOuter);
+  wrap.appendChild(stage);
+  layoutRouletteCards(track, State.players, false);
+
+  const launchBtn = document.createElement('button');
+  launchBtn.className = 'btn btn-primary roul-launch'; launchBtn.id = 'roulLaunch';
+  const chief = State.room && State.room.chief;
+  launchBtn.textContent = rouletteSpinning ? '🎲 Tirage en cours…' : chief ? '🎲 Relancer la roulette' : '🎲 Lancer la roulette';
+  if (!State.players.length || rouletteSpinning) launchBtn.disabled = true;
+  wrap.appendChild(launchBtn);
+
+  if (!State.players.length) {
+    wrap.appendChild(infoBox('Personne dans la salle', 'Reviens quand il y aura au moins une personne pour tirer un·e Chef·fe de soirée.'));
+  }
+
+  const resultBox = document.createElement('div'); resultBox.className = 'roul-result'; resultBox.id = 'roulResult';
+  wrap.appendChild(resultBox);
+  if (chief) renderChiefBanner(resultBox, chief);
+
+  launchBtn.onclick = () => startRoulette(track, trackOuter, resultBox, launchBtn);
+
+  const gamesSection = document.createElement('div'); gamesSection.id = 'roulGames';
+  wrap.appendChild(gamesSection);
+  renderChiefGamesSection(gamesSection, chief);
+}
+
+function layoutRouletteCards(track, players, animate) {
+  track.innerHTML = '';
+  track.style.transition = 'none';
+  track.style.transform = 'translateX(0px)';
+  players.forEach(p => {
+    const el = document.createElement('div'); el.className = 'roul-card'; el.dataset.pid = p.id;
+    el.innerHTML = '<div class="roul-avatar">' + avatarFor(p, false) + '</div><div class="roul-name">' + escapeHtml(p.name) + '</div>';
+    track.appendChild(el);
+  });
+}
+
+function renderChiefBanner(box, chief) {
+  box.innerHTML = '';
+  const p = State.players.find(x => x.id === chief.id) || { id: chief.id, name: chief.name, color: colorFor(chief.id) };
+  const banner = document.createElement('div'); banner.className = 'roul-chief-banner';
+  banner.innerHTML = '<div class="roul-chief-avatar">' + avatarFor(p, false) + '</div>' +
+    '<div><div class="roul-chief-kicker">Chef de soirée</div><div class="roul-chief-name">' + escapeHtml(chief.name) + '</div></div>';
+  box.appendChild(banner);
+}
+
+// Tire le résultat AVANT de construire l'animation, puis construit une bande
+// (mélange répété des joueurs) dans laquelle une carte précise — proche de la
+// fin — est forcée à être ce résultat, et fait défiler la bande jusqu'à elle.
+function startRoulette(track, trackOuter, resultBox, launchBtn) {
+  const players = State.players.slice();
+  if (!players.length || rouletteSpinning) return;
+  rouletteSpinning = true;
+  launchBtn.disabled = true;
+  resultBox.innerHTML = '';
+
+  const winner = players[Math.floor(Math.random() * players.length)];
+
+  const REPEAT_MIN = Math.max(40, players.length * 6);
+  const shuffled = () => players.slice().sort(() => Math.random() - 0.5);
+  let strip = [];
+  while (strip.length < REPEAT_MIN) strip = strip.concat(shuffled());
+  strip = strip.slice(0, REPEAT_MIN);
+  const targetIndex = Math.max(0, REPEAT_MIN - 1 - Math.min(5, players.length));
+  strip[targetIndex] = winner;
+
+  track.innerHTML = ''; track.style.transition = 'none'; track.style.transform = 'translateX(0px)';
+  track.classList.add('blur');
+  const itemEls = strip.map(p => {
+    const el = document.createElement('div'); el.className = 'roul-card'; el.dataset.pid = p.id;
+    el.innerHTML = '<div class="roul-avatar">' + avatarFor(p, false) + '</div><div class="roul-name">' + escapeHtml(p.name) + '</div>';
+    track.appendChild(el);
+    return el;
+  });
+
+  requestAnimationFrame(() => {
+    const outerWidth = trackOuter.clientWidth;
+    const targetEl = itemEls[targetIndex];
+    const targetCenter = targetEl.offsetLeft + targetEl.offsetWidth / 2;
+    const finalX = -(targetCenter - outerWidth / 2);
+    void track.offsetWidth;
+    track.style.transition = 'transform 4.4s cubic-bezier(.09,.72,.16,1)';
+    track.style.transform = 'translateX(' + finalX + 'px)';
+    setTimeout(() => track.classList.remove('blur'), 2600);
+  });
+
+  let done = false;
+  const onEnd = e => {
+    if (done || (e && e.propertyName && e.propertyName !== 'transform')) return;
+    done = true;
+    track.removeEventListener('transitionend', onEnd);
+    finishRoulette(winner, itemEls[targetIndex], track, resultBox, launchBtn);
+  };
+  track.addEventListener('transitionend', onEnd);
+  setTimeout(onEnd, 5200); // filet de sécurité si l'événement ne se déclenche pas
+}
+
+function finishRoulette(winner, winnerEl, track, resultBox, launchBtn) {
+  winnerEl.classList.add('roul-winner');
+  track.style.pointerEvents = 'none';
+  playThemeRevealEffect(track, winnerEl);
+  setTimeout(() => {
+    rouletteSpinning = false;
+    roomRef().set({ chief: { id: winner.id, name: winner.name, ts: Date.now() }, chosenGame: null }, { merge: true })
+      .catch(() => { toast('Le résultat n\'a pas pu être enregistré.'); launchBtn.disabled = false; });
+  }, 1500);
+}
+
+function playThemeRevealEffect(track, winnerEl) {
+  if (theme === 'mh') {
+    const rect = winnerEl.getBoundingClientRect();
+    const half1 = document.createElement('div'); half1.className = 'roul-half roul-half-top';
+    const half2 = document.createElement('div'); half2.className = 'roul-half roul-half-bottom';
+    half1.innerHTML = half2.innerHTML = winnerEl.innerHTML;
+    [half1, half2].forEach(h => {
+      h.style.position = 'fixed'; h.style.left = rect.left + 'px'; h.style.top = rect.top + 'px';
+      h.style.width = rect.width + 'px'; h.style.height = rect.height + 'px'; h.style.zIndex = '90';
+      document.body.appendChild(h);
+    });
+    winnerEl.style.opacity = '0';
+    requestAnimationFrame(() => { half1.classList.add('go'); half2.classList.add('go'); });
+    setTimeout(() => { half1.remove(); half2.remove(); }, 1000);
+  } else if (theme === 'repo') {
+    Array.from(track.children).forEach(el => { if (el !== winnerEl) el.classList.add('roul-drop'); });
+  } else {
+    Array.from(track.children).forEach(el => { if (el !== winnerEl) el.classList.add('roul-fade'); });
+  }
+}
+
+function renderChiefGamesSection(container, chief) {
+  container.innerHTML = '';
+  if (!chief) return;
+  const chosen = State.room && State.room.chosenGame;
+  if (chosen) {
+    const g = gameById(chosen.id);
+    const banner = document.createElement('div'); banner.className = 'roul-chosen-banner';
+    banner.innerHTML = '<div class="roul-chosen-cover">' + (g ? coverHtml(g, { small: true }) : '') + '</div>' +
+      '<div><div class="roul-chosen-kicker">🎮 Ce soir, on joue à</div><div class="roul-chosen-name">' + escapeHtml(g ? g.name : chosen.name) + '</div></div>';
+    container.appendChild(banner);
+    if (isChief()) {
+      const changeBtn = document.createElement('button'); changeBtn.className = 'link-btn'; changeBtn.style.marginTop = '6px';
+      changeBtn.textContent = 'Choisir un autre jeu';
+      changeBtn.onclick = () => roomRef().update({ chosenGame: null }).catch(() => toast('Action impossible.'));
+      container.appendChild(changeBtn);
+    }
+    return;
+  }
+  const sub = document.createElement('div'); sub.className = 'section-title'; sub.style.marginTop = '20px';
+  sub.textContent = isChief() ? 'À toi de choisir le jeu de ce soir !' : 'En attente du choix de ' + chief.name + '…';
+  container.appendChild(sub);
+  const stats = matchStats();
+  if (!stats.length) { container.appendChild(infoBox('Pas encore de match', 'Swipez encore un peu pour faire apparaître des matchs à proposer.')); return; }
+  const grid = document.createElement('div'); grid.className = 'game-grid';
+  stats.forEach(m => {
+    const item = document.createElement('div'); item.className = 'grid-item';
+    item.innerHTML = '<div class="grid-cover">' + coverHtml(m.game, { small: true }) + (m.full ? '<span class="m-badge" style="position:absolute;top:6px;left:6px;z-index:6;">MATCH</span>' : '') + '</div>' +
+      '<div class="grid-name">' + escapeHtml(m.game.name) + '</div><div class="grid-by">' + m.count + '/' + m.denom + '</div>';
+    if (isChief()) item.onclick = () => showChiefGameModal(m.game.id);
+    grid.appendChild(item);
+  });
+  container.appendChild(grid);
+}
+
+function showChiefGameModal(gid) {
+  const g = gameById(gid); if (!g) return;
+  closeModal();
+  const ov = document.createElement('div'); ov.className = 'modal-overlay'; ov.id = 'modalOverlay';
+  const box = document.createElement('div'); box.className = 'chief-modal';
+  box.innerHTML =
+    '<button class="chief-modal-close" type="button" aria-label="Fermer">✕</button>' +
+    '<div class="chief-modal-cover">' + coverHtml(g) + '</div>' +
+    '<div class="chief-modal-body"><h3>' + escapeHtml(g.name) + '</h3>' +
+    (g.tag ? '<div class="info-genres"><span>' + escapeHtml(g.tag) + '</span></div>' : '') +
+    (g.desc ? '<p class="info-desc">' + escapeHtml(g.desc) + '</p>' : '') +
+    '<button class="btn btn-primary chief-validate" type="button">✅ Valider ce jeu</button></div>';
+  ov.appendChild(box);
+  ov.addEventListener('click', e => { if (e.target === ov) closeModal(); });
+  document.body.appendChild(ov);
+  box.querySelector('.chief-modal-close').onclick = closeModal;
+  box.querySelector('.chief-validate').onclick = () => {
+    roomRef().set({ chosenGame: { id: g.id, name: g.name, ts: Date.now(), by: myName } }, { merge: true })
+      .catch(() => toast('Impossible de valider ce jeu.'));
+    closeModal();
+  };
+}
+
+const TAB_ORDER = ['deck', 'library', 'matches', 'roulette'];
 function playPageIn(dir) {
   const main = document.getElementById('main');
   main.classList.remove('page-in-r', 'page-in-l'); void main.offsetWidth;
