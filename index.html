@@ -14,6 +14,7 @@
 <!-- Firebase (v10, compat build : pas besoin d'outil de build) -->
 <script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-auth-compat.js"></script>
 
 <style id="base">
   /* ===== Base commune : structure et animations partagées par tous les thèmes ===== */
@@ -121,6 +122,34 @@
   .chief-modal-body h3 { margin: 0 0 8px; font-size: 22px; line-height: 1.2; }
   .chief-modal-body .info-desc { margin: 10px 0 16px; }
   .chief-validate { width: 100%; font-size: 15px; padding: 14px; }
+
+  /* ===== Comptes, profil, historique — réutilisent .gate/.box/.btn/.game-list déjà thémés ===== */
+  .gate.wide .box { max-width: 460px; }
+  .gate .box.scroll { max-height: 84vh; overflow-y: auto; }
+  .home-logo { font-size: 44px; line-height: 1; margin-bottom: 6px; }
+  .home-actions { display: flex; flex-direction: column; gap: 10px; margin-top: 4px; }
+  .home-actions .btn { width: 100%; }
+  .home-switch { text-align: center; margin-top: 14px; font-size: 13.5px; }
+  .form-error { color: var(--red); font-size: 13px; line-height: 1.35; margin: -4px 0 10px; min-height: 0; }
+  .form-error:empty { display: none; }
+  .profile-head { display: flex; align-items: center; gap: 14px; margin-bottom: 4px; }
+  .profile-avatar { width: 52px; height: 52px; border-radius: 50%; flex: none; display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 19px; color: #fff; }
+  .profile-name { font-size: 19px; font-weight: 800; }
+  .profile-section-row { display: flex; align-items: center; justify-content: space-between; margin: 20px 0 8px; }
+  .history-item { cursor: pointer; }
+  .history-item .m-name { font-size: 15.5px; }
+  .history-empty { font-size: 13.5px; opacity: .7; }
+  .close-session-btn { width: 100%; margin-top: 22px; }
+  .close-modal-box ul { margin: 8px 0 14px; padding-left: 20px; font-size: 14px; line-height: 1.55; }
+  .close-modal-box li { margin-bottom: 2px; }
+  .summary-emoji { font-size: 40px; text-align: center; margin-bottom: 6px; }
+  .summary-stats { display: flex; gap: 18px; justify-content: center; margin: 14px 0 18px; text-align: center; }
+  .summary-stats b { display: block; font-size: 22px; }
+  .summary-stats span { font-size: 11.5px; opacity: .7; text-transform: uppercase; letter-spacing: .06em; }
+  .summary-games { list-style: none; margin: 0 0 18px; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+  .summary-games li { padding: 9px 12px; border-radius: 8px; background: var(--surface-2, var(--bg-elevated-2, rgba(128,128,128,.12))); font-size: 14px; font-weight: 600; }
+  #profileBtn.profile-link { position: relative; }
+  #profileBtn.profile-link::after { content: ''; position: absolute; top: 2px; right: 2px; width: 8px; height: 8px; border-radius: 50%; background: var(--green); border: 2px solid var(--bg); }
 
   @media (prefers-reduced-motion: reduce) {
     main.page-in-r, main.page-in-l, .card-caption.swap, .info-skel i { animation: none; }
@@ -894,7 +923,7 @@
       <div class="brand-sub"></div>
       <h1>À quoi jouer ?</h1>
     </div>
-    <div class="head-right"><button class="theme-btn" id="themeBtn" type="button" title="Changer de thème" aria-label="Changer de thème">◐</button><div class="room-pill" id="roomPill" title="Copier le code de la salle">Salle <b id="roomCodeLabel">----</b></div><button class="theme-btn" id="leaveBtn" type="button" title="Quitter la salle" aria-label="Quitter la salle">🚪</button></div>
+    <div class="head-right"><button class="theme-btn" id="themeBtn" type="button" title="Changer de thème" aria-label="Changer de thème">◐</button><button class="theme-btn" id="profileBtn" type="button" title="Mon profil" aria-label="Mon profil">👤</button><div class="room-pill" id="roomPill" title="Copier le code de la salle">Salle <b id="roomCodeLabel">----</b></div><button class="theme-btn" id="leaveBtn" type="button" title="Quitter la salle" aria-label="Quitter la salle">🚪</button></div>
   </header>
   <div class="rule">◆</div>
   <div class="hazard"></div>
@@ -929,6 +958,7 @@ const FIREBASE_CONFIG = {
 
 firebase.initializeApp(FIREBASE_CONFIG);
 const db = firebase.firestore();
+const auth = firebase.auth();
 
 const ICON_TRASH = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13M10 11v6M14 11v6"/></svg>';
 
@@ -1217,7 +1247,7 @@ function resetToGate(message) {
   focusGameId = null; infoModalGid = null;
   closeModal();
   if (message) toast(message);
-  showGate();
+  if (authUser) showScreen('home'); else showGate();
 }
 function handleKicked() { resetToGate('Tu as été exclu de la salle.'); }
 
@@ -1233,6 +1263,398 @@ function kickPlayer(pid, name) {
     try { await playersCol().doc(pid).delete(); } catch (e) { toast('Impossible d\'exclure ce joueur.'); }
   });
 }
+
+// ---------------------------------------------------------------
+// Comptes — authentification, bibliothèque personnelle, historique.
+// Réutilise au maximum ce qui existe déjà : importGames() (fusion/
+// dédoublonnage), fetchSteamCover/fetchSteamInfo, coverHtml, showConfirm,
+// closeModal, .gate/.btn/.game-list déjà thémés par écran.
+// Le flux anonyme (showGate) reste inchangé et reste disponible via
+// « Continuer sans compte ».
+// ---------------------------------------------------------------
+let authUser = null;       // objet Firebase Auth une fois connecté
+let myProfile = null;      // users/{uid} { username, createdAt }
+let myPersonalGames = [];  // live : users/{uid}/games
+let authBooted = false;
+let currentScreen = null;  // 'home' | 'login' | 'signup' | 'profile' | 'joinroom' | 'history' | 'summary' | null
+
+function usersCol() { return db.collection('users'); }
+function personalGamesCol(uidArg) { return usersCol().doc(uidArg || authUser.uid).collection('games'); }
+
+let personalUnsub = null;
+function stopPersonalListening() { if (personalUnsub) { try { personalUnsub(); } catch (e) {} personalUnsub = null; } }
+function startPersonalListening() {
+  stopPersonalListening();
+  if (!authUser) return;
+  personalUnsub = personalGamesCol().orderBy('ts', 'asc').onSnapshot(snap => {
+    myPersonalGames = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    if (currentScreen === 'profile') renderScreen();
+  });
+}
+
+function authErrorMessage(e) {
+  switch (e && e.code) {
+    case 'auth/email-already-in-use': return 'Ce pseudo est déjà pris — choisis-en un autre, ou connecte-toi.';
+    case 'auth/invalid-email': return 'Ce pseudo contient des caractères non gérés — essaie avec des lettres/chiffres.';
+    case 'auth/weak-password': return 'Mot de passe trop court (6 caractères minimum).';
+    case 'auth/wrong-password': case 'auth/invalid-credential': case 'auth/invalid-login-credentials': return 'Pseudo ou mot de passe incorrect.';
+    case 'auth/user-not-found': return 'Aucun compte ne correspond à ce pseudo.';
+    case 'auth/too-many-requests': return 'Trop de tentatives — réessaie dans un instant.';
+    case 'auth/network-request-failed': return 'Problème de connexion — réessaie.';
+    default: return 'Une erreur est survenue. Réessaie.';
+  }
+}
+// Un pseudo doit être valide pour Firebase Auth sans jamais être demandé/affiché
+// comme un e-mail : on le transforme en une adresse interne stable et unique,
+// ce qui donne aussi l'unicité du pseudo « gratuitement » (Firebase refuse les
+// doublons d'e-mail). Le pseudo affiché, lui, garde sa casse d'origine.
+function usernameToLoginEmail(name) {
+  let slug = String(name || '').trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9._-]+/g, '-').replace(/^-+|-+$/g, '');
+  if (!slug) { let h = 0; for (let i = 0; i < name.length; i++) h = (h * 31 + name.charCodeAt(i)) >>> 0; slug = 'joueur-' + h.toString(36); }
+  return slug + '@joueurs.gamenight.local';
+}
+
+function showScreen(name) {
+  const old = document.getElementById('accountScreen');
+  if (old) old.remove();
+  currentScreen = name;
+  if (!name) return;
+  const el = document.createElement('div'); el.id = 'accountScreen';
+  document.body.appendChild(el);
+  renderScreen();
+}
+function renderScreen() {
+  const el = document.getElementById('accountScreen');
+  if (!el || !currentScreen) return;
+  el.innerHTML = '';
+  if (currentScreen === 'home') renderHomeScreen(el);
+  else if (currentScreen === 'login') renderAuthScreen(el, 'login');
+  else if (currentScreen === 'signup') renderAuthScreen(el, 'signup');
+  else if (currentScreen === 'profile') renderProfileScreen(el);
+  else if (currentScreen === 'joinroom') renderJoinRoomScreen(el);
+}
+
+function gateShell(el, wide) {
+  const gate = document.createElement('div'); gate.className = 'gate' + (wide ? ' wide' : '');
+  const box = document.createElement('div'); box.className = 'box' + (wide ? ' scroll' : '');
+  gate.appendChild(box); el.appendChild(gate);
+  return box;
+}
+
+function renderHomeScreen(el) {
+  const box = gateShell(el);
+  box.innerHTML =
+    '<div class="home-logo">🎲</div>' +
+    '<div class="brand-sub">' + THEMES[theme].sub + '</div>' +
+    '<h2>À quoi jouer ce soir ?</h2>' +
+    '<p>Swipez vos jeux à plusieurs, laissez apparaître les matchs, et tirez au sort qui décide ce soir.</p>';
+  const actions = document.createElement('div'); actions.className = 'home-actions';
+  box.appendChild(actions);
+  if (authUser) {
+    const hello = document.createElement('p'); hello.style.cssText = 'margin-top:-6px;';
+    hello.innerHTML = 'Content de te revoir, <b>' + escapeHtml((myProfile && myProfile.username) || '') + '</b>.';
+    box.insertBefore(hello, actions);
+    const cont = document.createElement('button'); cont.className = 'btn btn-primary'; cont.textContent = '➡️ Continuer';
+    cont.onclick = () => showScreen('profile');
+    actions.appendChild(cont);
+  } else {
+    const loginBtn = document.createElement('button'); loginBtn.className = 'btn btn-primary'; loginBtn.textContent = 'Se connecter';
+    loginBtn.onclick = () => showScreen('login');
+    const signupBtn = document.createElement('button'); signupBtn.className = 'btn btn-ghost'; signupBtn.textContent = 'Créer un compte';
+    signupBtn.onclick = () => showScreen('signup');
+    actions.appendChild(loginBtn); actions.appendChild(signupBtn);
+  }
+  const skip = document.createElement('button'); skip.className = 'link-btn';
+  skip.style.cssText = 'display:block;margin:16px auto 0;text-align:center;';
+  skip.textContent = 'Continuer sans compte';
+  skip.onclick = () => { showScreen(null); showGate(); };
+  box.appendChild(skip);
+}
+
+function renderAuthScreen(el, mode) {
+  const isSignup = mode === 'signup';
+  const box = gateShell(el);
+  box.innerHTML =
+    '<div class="brand-sub">' + THEMES[theme].sub + '</div>' +
+    '<h2>' + (isSignup ? 'Créer un compte' : 'Se connecter') + '</h2>' +
+    '<div class="form-error" id="authErr"></div>' +
+    '<input type="text" id="afName" placeholder="Pseudo" autocomplete="username" maxlength="24">' +
+    '<input type="password" id="afPass" placeholder="Mot de passe' + (isSignup ? ' (6 caractères min.)' : '') + '" autocomplete="' + (isSignup ? 'new-password' : 'current-password') + '">' +
+    '<button class="btn btn-primary" id="afGo" style="width:100%;">' + (isSignup ? 'Créer mon compte' : 'Se connecter') + '</button>' +
+    '<button class="link-btn" id="afSwitch" style="display:block;margin:14px auto 0;">' + (isSignup ? 'Déjà un compte ? Se connecter' : 'Pas de compte ? En créer un') + '</button>' +
+    '<button class="link-btn" id="afBack" style="display:block;margin:6px auto 0;">← Retour</button>';
+  const err = box.querySelector('#authErr');
+  box.querySelector('#afBack').onclick = () => showScreen('home');
+  box.querySelector('#afSwitch').onclick = () => showScreen(isSignup ? 'login' : 'signup');
+  const btn = box.querySelector('#afGo');
+  const submit = () => {
+    err.textContent = '';
+    const name = box.querySelector('#afName').value.trim();
+    const pass = box.querySelector('#afPass').value;
+    if (!name) { err.textContent = 'Choisis un pseudo.'; return; }
+    if (name.length < 2) { err.textContent = 'Pseudo trop court (2 caractères minimum).'; return; }
+    if (!pass) { err.textContent = 'Entre ton mot de passe.'; return; }
+    if (isSignup && pass.length < 6) { err.textContent = 'Mot de passe trop court (6 caractères minimum).'; return; }
+    const loginEmail = usernameToLoginEmail(name);
+    btn.disabled = true; btn.textContent = isSignup ? 'Création…' : 'Connexion…';
+    const done = () => { btn.disabled = false; btn.textContent = isSignup ? 'Créer mon compte' : 'Se connecter'; };
+    if (isSignup) {
+      auth.createUserWithEmailAndPassword(loginEmail, pass).then(cred => {
+        const profile = { username: name, createdAt: Date.now() };
+        return usersCol().doc(cred.user.uid).set(profile).then(() => { myProfile = profile; });
+      }).then(() => {
+        startPersonalListening();
+        showScreen('profile');
+      }).catch(e => { err.textContent = authErrorMessage(e); done(); });
+    } else {
+      auth.signInWithEmailAndPassword(loginEmail, pass).catch(e => { err.textContent = authErrorMessage(e); done(); });
+      // succès : onAuthStateChanged prend le relais et ouvre le profil.
+    }
+  };
+  btn.onclick = submit;
+  box.querySelectorAll('input').forEach(inp => inp.addEventListener('keydown', e => { if (e.key === 'Enter') submit(); }));
+}
+
+function renderProfileScreen(el) {
+  const box = gateShell(el, true);
+  const initials2 = ((myProfile && myProfile.username) || '?').trim().slice(0, 2).toUpperCase();
+  const head = document.createElement('div'); head.className = 'profile-head';
+  head.innerHTML =
+    '<div class="profile-avatar" style="background:' + colorFor(authUser.uid) + '">' + escapeHtml(initials2) + '</div>' +
+    '<div class="profile-name">' + escapeHtml((myProfile && myProfile.username) || 'Joueur·euse') + '</div>';
+  box.appendChild(head);
+
+  if (!roomCode) {
+    const joinBtn = document.createElement('button'); joinBtn.className = 'btn btn-primary'; joinBtn.style.cssText = 'width:100%;margin-top:18px;';
+    joinBtn.textContent = '🚪 Rejoindre / créer une salle';
+    joinBtn.onclick = () => showScreen('joinroom');
+    box.appendChild(joinBtn);
+  } else {
+    const backBtn = document.createElement('button'); backBtn.className = 'btn btn-primary'; backBtn.style.cssText = 'width:100%;margin-top:18px;';
+    backBtn.textContent = '↩️ Retour à la salle ' + roomCode;
+    backBtn.onclick = () => showScreen(null);
+    box.appendChild(backBtn);
+  }
+
+  const gTitleRow = document.createElement('div'); gTitleRow.className = 'profile-section-row';
+  gTitleRow.innerHTML = '<div class="section-title" style="margin:0;">Mes jeux · ' + myPersonalGames.length + '</div>';
+  const addBtn = document.createElement('button'); addBtn.className = 'btn btn-ghost btn-sm'; addBtn.textContent = '+ Ajouter';
+  gTitleRow.appendChild(addBtn);
+  box.appendChild(gTitleRow);
+  const formZone = document.createElement('div'); box.appendChild(formZone);
+  addBtn.onclick = () => {
+    formZone.innerHTML = '';
+    const f = document.createElement('div'); f.className = 'inline-form';
+    f.innerHTML = '<input type="text" id="pgName" placeholder="Nom du jeu"><input type="text" id="pgTag" placeholder="Genre (optionnel)">' +
+      '<div class="btn-row"><button class="btn btn-ghost" id="pgCancel">Annuler</button><button class="btn btn-primary" id="pgSave">Ajouter</button></div>';
+    formZone.appendChild(f);
+    f.querySelector('#pgCancel').onclick = () => { formZone.innerHTML = ''; };
+    f.querySelector('#pgSave').onclick = () => {
+      const name = f.querySelector('#pgName').value, tag = f.querySelector('#pgTag').value;
+      if (!name.trim()) { toast('Donne un nom au jeu.'); return; }
+      addPersonalGame(name, tag); formZone.innerHTML = '';
+    };
+  };
+  if (!myPersonalGames.length) {
+    const ib = infoBox('Aucun jeu pour l\'instant', 'Ajoute tes jeux ici : ils seront automatiquement proposés dans chaque salon que tu rejoins.');
+    ib.style.marginTop = '10px'; box.appendChild(ib);
+  } else {
+    const list = document.createElement('div'); list.className = 'game-list';
+    myPersonalGames.forEach(g => {
+      const row = document.createElement('div'); row.className = 'game-row';
+      row.innerHTML = '<div class="g-cover">' + coverHtml(g, { small: true }) + '</div>' +
+        '<div class="g-main"><div class="g-name">' + escapeHtml(g.name) + '</div></div>' +
+        '<span class="g-tag">' + escapeHtml(g.tag || 'Autre') + '</span>' +
+        '<button class="icon-btn" title="Supprimer" aria-label="Supprimer">' + ICON_TRASH + '</button>';
+      row.querySelector('.icon-btn').onclick = () => showConfirm('Retirer « ' + g.name + ' » de tes jeux ?', 'Retirer', () => removePersonalGame(g.id));
+      list.appendChild(row);
+    });
+    box.appendChild(list);
+  }
+
+  const hTitle = document.createElement('div'); hTitle.className = 'section-title'; hTitle.style.marginTop = '22px'; hTitle.textContent = 'Dernières soirées';
+  box.appendChild(hTitle);
+  const hList = document.createElement('div'); hList.id = 'historyList'; hList.innerHTML = '<div class="history-empty">Chargement…</div>';
+  box.appendChild(hList);
+  loadHistoryList(hList);
+
+  const backRow = document.createElement('div'); backRow.style.cssText = 'display:flex;justify-content:space-between;margin-top:22px;';
+  const homeBtn = document.createElement('button'); homeBtn.className = 'link-btn'; homeBtn.textContent = '← Accueil';
+  homeBtn.onclick = () => showScreen('home');
+  const logoutBtn = document.createElement('button'); logoutBtn.className = 'link-btn'; logoutBtn.style.color = 'var(--red)';
+  logoutBtn.textContent = 'Se déconnecter';
+  logoutBtn.onclick = () => auth.signOut().then(() => showScreen('home'));
+  backRow.appendChild(homeBtn); backRow.appendChild(logoutBtn);
+  box.appendChild(backRow);
+}
+
+function renderJoinRoomScreen(el) {
+  const box = gateShell(el);
+  box.innerHTML =
+    '<div class="brand-sub">' + THEMES[theme].sub + '</div><h2>Rejoindre une salle</h2>' +
+    '<p>Tu rejoins en tant que <b>' + escapeHtml((myProfile && myProfile.username) || '') + '</b>. Tes jeux personnels seront automatiquement proposés à la salle.</p>' +
+    '<input type="text" id="jrCode" placeholder="Code (vide = nouvelle salle)" maxlength="8" style="text-transform:uppercase;" autocapitalize="characters">' +
+    '<button class="btn btn-primary" id="jrGo" style="width:100%;">Entrer</button>' +
+    '<button class="link-btn" id="jrBack" style="display:block;margin:14px auto 0;">← Retour au profil</button>';
+  box.querySelector('#jrBack').onclick = () => showScreen('profile');
+  const go = box.querySelector('#jrGo');
+  const submit = () => {
+    let code = box.querySelector('#jrCode').value.trim();
+    if (!code) code = randomRoomCode();
+    go.disabled = true;
+    joinRoomAsAccount(code);
+  };
+  go.onclick = submit;
+  box.querySelector('#jrCode').addEventListener('keydown', e => { if (e.key === 'Enter') submit(); });
+}
+
+async function joinRoomAsAccount(code) {
+  myId = authUser.uid;
+  localStorage.setItem('gn_uid', myId);
+  const gamesToImport = myPersonalGames.slice();
+  await joinRoom(code, (myProfile && myProfile.username) || 'Joueur·euse');
+  showScreen(null);
+  if (gamesToImport.length) {
+    // L'abonnement temps réel démarré par joinRoom() n'a pas forcément livré
+    // son premier instantané : on va chercher l'état actuel une fois, pour
+    // que la détection de doublon (findExisting) ne rate pas un jeu déjà
+    // présent et n'en crée pas une copie.
+    try {
+      const snap = await gamesCol().get();
+      State.games = snap.docs.map(d => ({ id: d.id, ...d.data() })).sort((a, b) => (a.ts || 0) - (b.ts || 0));
+    } catch (e) {}
+    importGames(gamesToImport.map(g => ({
+      name: g.name, tag: g.tag, appid: g.appid, image: g.coverUrl, fallbackImage: g.coverFallback,
+      desc: g.desc, genres: g.genres, dev: g.dev, released: g.released, multiplayer: g.multiplayer,
+    }))).then(r => { if (r.added || r.merged) toast('Tes jeux personnels ont été ajoutés à la salle.'); }).catch(() => {});
+  }
+}
+
+async function addPersonalGame(name, tag) {
+  name = name.trim(); if (!name || !authUser) return;
+  if (myPersonalGames.some(g => normName(g.name) === normName(name))) { toast('Déjà dans tes jeux.'); return; }
+  const ref = await personalGamesCol().add({ name, tag: (tag || 'Autre').trim() || 'Autre', ts: Date.now(), coverUrl: null });
+  const found = await fetchSteamCover(name);
+  if (found) ref.update({ coverUrl: found.image, coverFallback: found.fallbackImage, appid: found.appid || null }).catch(() => {});
+}
+async function removePersonalGame(id) { try { await personalGamesCol().doc(id).delete(); } catch (e) {} }
+
+// ---- Historique des soirées ----
+function loadHistoryList(container) {
+  if (!authUser) { container.innerHTML = '<div class="history-empty">Connecte-toi pour voir ton historique.</div>'; return; }
+  db.collection('histories').where('participantIds', 'array-contains', authUser.uid)
+    .get().then(snap => {
+      const items = snap.docs.map(d => ({ id: d.id, ...d.data() })).sort((a, b) => (b.closedAt || 0) - (a.closedAt || 0)).slice(0, 10);
+      if (currentScreen !== 'profile') return;
+      const list = document.getElementById('historyList'); if (!list) return;
+      if (!items.length) { list.innerHTML = '<div class="history-empty">Pas encore de soirée clôturée.</div>'; return; }
+      list.innerHTML = ''; list.className = 'match-list';
+      items.forEach(it => {
+        const row = document.createElement('div'); row.className = 'match-row history-item';
+        const d = new Date(it.closedAt || 0);
+        const dateStr = d.toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' });
+        row.innerHTML = '<div class="m-body"><div class="m-name">' + escapeHtml(dateStr) + '</div>' +
+          '<div class="m-score">' + (it.participants || []).length + ' participant' + ((it.participants || []).length > 1 ? 's' : '') + ' · ' + (it.games || []).length + ' jeu' + ((it.games || []).length > 1 ? 'x' : '') + '</div></div>';
+        row.onclick = () => showHistoryDetail(it);
+        list.appendChild(row);
+      });
+    }).catch(() => {
+      const list = document.getElementById('historyList'); if (list) list.innerHTML = '<div class="history-empty">Historique indisponible pour le moment.</div>';
+    });
+}
+function showHistoryDetail(it) {
+  closeModal();
+  const ov = document.createElement('div'); ov.className = 'modal-overlay'; ov.id = 'modalOverlay';
+  const box = document.createElement('div'); box.className = 'modal-box';
+  const d = new Date(it.closedAt || 0);
+  const dateStr = d.toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
+  box.innerHTML =
+    '<p style="margin-bottom:4px;"><strong>' + escapeHtml(dateStr) + '</strong></p>' +
+    '<div class="section-title" style="margin:14px 0 6px;">Participants</div>' +
+    '<p style="margin:0 0 4px;">' + (it.participants || []).map(p => escapeHtml(p.name)).join(', ') + '</p>' +
+    '<div class="section-title" style="margin:14px 0 6px;">Jeux joués</div>' +
+    '<ol style="margin:0 0 4px;padding-left:20px;">' + (it.games || []).map(g => '<li>' + escapeHtml(g.name) + '</li>').join('') + '</ol>' +
+    (it.chief ? '<div class="section-title" style="margin:14px 0 6px;">' + (it.chiefsHistory && it.chiefsHistory.length > 1 ? 'Chefs de soirée' : 'Chef de soirée') + '</div><p style="margin:0;">' + escapeHtml(it.chiefsHistory && it.chiefsHistory.length > 1 ? it.chiefsHistory.join(', ') : it.chief.name) + '</p>' : '') +
+    '<div class="btn-row" style="margin-top:16px;"><button class="btn btn-primary" id="hdClose">Fermer</button></div>';
+  ov.appendChild(box);
+  ov.addEventListener('click', e => { if (e.target === ov) closeModal(); });
+  document.body.appendChild(ov);
+  box.querySelector('#hdClose').onclick = closeModal;
+}
+
+// ---- Clôturer la soirée ----
+function closeSession() {
+  if (!State.players.length) { toast('Aucun joueur dans la salle.'); return; }
+  closeModal();
+  const ov = document.createElement('div'); ov.className = 'modal-overlay'; ov.id = 'modalOverlay';
+  const box = document.createElement('div'); box.className = 'modal-box close-modal-box';
+  const chiefLine = State.room.chief ? escapeHtml(State.room.chief.name) : 'aucun désigné';
+  const playedCount = (State.room.playedGames || []).length || (State.room.chief && State.room.chosenGame ? 1 : 0);
+  box.innerHTML =
+    '<p><strong>Clôturer la soirée ?</strong></p>' +
+    '<p style="margin:-4px 0 0;">La soirée sera enregistrée dans l\'historique avec :</p>' +
+    '<ul><li>les participants (' + State.players.length + ')</li>' +
+    '<li>les jeux joués (' + playedCount + ')</li>' +
+    '<li>la date</li>' +
+    '<li>le Chef de soirée : ' + chiefLine + '</li></ul>' +
+    '<p style="font-size:12.5px;opacity:.75;margin:0 0 4px;">Cette action ne supprime ni les comptes, ni les bibliothèques personnelles.</p>' +
+    '<div class="btn-row" style="margin-top:14px;"><button class="btn btn-ghost" id="csCancel">Annuler</button><button class="btn btn-primary" id="csGo">Clôturer la soirée</button></div>';
+  ov.appendChild(box);
+  document.body.appendChild(ov);
+  box.querySelector('#csCancel').onclick = closeModal;
+  box.querySelector('#csGo').onclick = async () => {
+    const btn = box.querySelector('#csGo'); btn.disabled = true; btn.textContent = 'Clôture…';
+    try { await performCloseSession(); }
+    catch (e) { toast('La clôture a échoué. Réessaie.'); btn.disabled = false; btn.textContent = 'Clôturer la soirée'; }
+  };
+}
+async function performCloseSession() {
+  const played = (State.room.playedGames || []).slice().sort((a, b) => (a.ts || 0) - (b.ts || 0));
+  const gamesPlayed = played.length
+    ? played.map(g => ({ id: g.id, name: g.name }))
+    : (State.room.chosenGame ? [{ id: State.room.chosenGame.id, name: State.room.chosenGame.name }] : []);
+  const chiefsSeen = [];
+  played.forEach(g => { if (g.chief && !chiefsSeen.includes(g.chief)) chiefsSeen.push(g.chief); });
+  const entry = {
+    roomCode,
+    roomName: (State.room && State.room.name) || roomCode,
+    participantIds: State.players.map(p => p.id),
+    participants: State.players.map(p => ({ id: p.id, name: p.name })),
+    games: gamesPlayed,
+    chief: State.room.chief ? { id: State.room.chief.id, name: State.room.chief.name } : null,
+    chiefsHistory: chiefsSeen,
+    closedAt: Date.now(),
+    closedBy: myId,
+  };
+  await db.collection('histories').add(entry);
+  await roomRef().set({ closed: true, closedAt: entry.closedAt }, { merge: true }).catch(() => {});
+  closeModal();
+  showSummaryScreen(entry);
+}
+function showSummaryScreen(entry) {
+  stopListening();
+  localStorage.removeItem('gn_room'); localStorage.removeItem('gn_name');
+  roomCode = ''; myName = '';
+  State.games = []; State.swipes = []; State.players = []; State.room = {};
+  showScreen(null);
+  const el = document.createElement('div'); el.id = 'accountScreen'; document.body.appendChild(el);
+  currentScreen = 'summary';
+  const box = gateShell(el);
+  const d = new Date(entry.closedAt);
+  const dateStr = d.toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' });
+  box.innerHTML =
+    '<div class="summary-emoji">🎉</div><h2 style="text-align:center;">Soirée terminée</h2>' +
+    '<p style="text-align:center;margin-top:-6px;">' + escapeHtml(dateStr) + '</p>' +
+    '<div class="summary-stats"><div><b>' + entry.participants.length + '</b><span>Joueurs</span></div><div><b>' + entry.games.length + '</b><span>Jeux</span></div></div>' +
+    (entry.games.length ? '<ul class="summary-games">' + entry.games.map(g => '<li>' + escapeHtml(g.name) + '</li>').join('') + '</ul>' : '') +
+    (entry.chief ? '<p style="text-align:center;margin:0 0 6px;"><b>Chef de soirée</b><br>' + escapeHtml(entry.chief.name) + '</p>' : '') +
+    '<div class="home-actions" style="margin-top:14px;">' +
+    '<button class="btn btn-primary" id="sumHome">Retour à l\'accueil</button>' +
+    (authUser ? '<button class="btn btn-ghost" id="sumHist">Voir l\'historique</button>' : '') + '</div>';
+  box.querySelector('#sumHome').onclick = () => { if (authUser) showScreen('home'); else { showScreen(null); showGate(); } };
+  if (authUser) box.querySelector('#sumHist').onclick = () => showScreen('profile');
+}
+
 
 async function togglePlaying() {
   const me = State.players.find(p => p.id === myId);
@@ -2301,6 +2723,13 @@ function renderRoulette(main) {
   const gamesSection = document.createElement('div'); gamesSection.id = 'roulGames';
   wrap.appendChild(gamesSection);
   renderChiefGamesSection(gamesSection, chief);
+
+  if (isHost() && State.room && !State.room.closed) {
+    const closeBtn = document.createElement('button'); closeBtn.className = 'btn btn-ghost close-session-btn';
+    closeBtn.textContent = '🏁 Clôturer la soirée';
+    closeBtn.onclick = closeSession;
+    wrap.appendChild(closeBtn);
+  }
 }
 
 function layoutRouletteCards(track, players, animate) {
@@ -2457,8 +2886,11 @@ function showChiefGameModal(gid) {
   document.body.appendChild(ov);
   box.querySelector('.chief-modal-close').onclick = closeModal;
   box.querySelector('.chief-validate').onclick = () => {
-    roomRef().set({ chosenGame: { id: g.id, name: g.name, ts: Date.now(), by: myName } }, { merge: true })
-      .catch(() => toast('Impossible de valider ce jeu.'));
+    const FV = firebase.firestore.FieldValue;
+    roomRef().set({
+      chosenGame: { id: g.id, name: g.name, ts: Date.now(), by: myName },
+      playedGames: FV.arrayUnion({ id: g.id, name: g.name, ts: Date.now(), chief: myName }),
+    }, { merge: true }).catch(() => toast('Impossible de valider ce jeu.'));
     closeModal();
   };
 }
@@ -2491,6 +2923,9 @@ document.getElementById('roomPill').addEventListener('click', () => {
   if (navigator.clipboard) navigator.clipboard.writeText(roomCode).then(() => toast('Code copié : ' + roomCode));
 });
 document.getElementById('leaveBtn').addEventListener('click', leaveRoom);
+document.getElementById('profileBtn').addEventListener('click', () => {
+  if (authUser) showScreen('profile'); else showScreen('home');
+});
 
 // ---------------------------------------------------------------
 // Porte d'entrée : rejoindre ou créer une salle
@@ -2506,8 +2941,10 @@ function showGate() {
     '<input type="text" id="gateCode" placeholder="Code de salle (ex : AB12C)" maxlength="8" style="text-transform:uppercase;" autocapitalize="characters">' +
     '<input type="text" id="gateName" placeholder="Ton prénom">' +
     '<button class="btn btn-primary" id="gateGo" style="width:100%;">Entrer</button>' +
+    '<button class="link-btn" id="gateLogin" style="display:block;margin:14px auto 0;">Tu as un compte ? Se connecter</button>' +
     '</div>';
   document.body.appendChild(gate);
+  document.getElementById('gateLogin').onclick = () => { gate.remove(); showScreen('login'); };
   document.getElementById('gateGo').onclick = () => {
     const name = document.getElementById('gateName').value.trim();
     let code = document.getElementById('gateCode').value.trim();
@@ -2518,12 +2955,37 @@ function showGate() {
 }
 
 applyTheme(theme);
-if (roomCode && myName) {
-  ensureHost().then(startListening);
-  playersCol().doc(myId).set({ name: myName, color: colorFor(myId), playing: true, ts: Date.now() }, { merge: true });
-} else {
-  showGate();
+
+// Le flux anonyme existant (roomCode+myName déjà en localStorage) est
+// entièrement préservé : un utilisateur qui l'utilisait déjà retombe
+// directement dans sa salle, sans jamais voir le nouvel écran d'accueil.
+function boot() {
+  if (roomCode && myName) {
+    ensureHost().then(startListening);
+    playersCol().doc(myId).set({ name: myName, color: colorFor(myId), playing: true, ts: Date.now() }, { merge: true });
+  } else {
+    showScreen('home');
+  }
 }
+function afterAuthResolved() {
+  if (!authBooted) { authBooted = true; boot(); return; }
+  if (currentScreen === 'login' || currentScreen === 'signup') { showScreen(authUser ? 'profile' : 'home'); return; }
+  if (currentScreen === 'profile' || currentScreen === 'home') renderScreen();
+}
+auth.onAuthStateChanged(user => {
+  authUser = user;
+  document.getElementById('profileBtn').classList.toggle('profile-link', !!user);
+  if (user) {
+    usersCol().doc(user.uid).get().then(snap => {
+      myProfile = snap.exists ? snap.data() : { username: 'Joueur·euse', createdAt: Date.now() };
+      startPersonalListening();
+      afterAuthResolved();
+    }).catch(() => { myProfile = { username: 'Joueur·euse' }; afterAuthResolved(); });
+  } else {
+    myProfile = null; myPersonalGames = []; stopPersonalListening();
+    afterAuthResolved();
+  }
+});
 </script>
 </body>
 </html>
