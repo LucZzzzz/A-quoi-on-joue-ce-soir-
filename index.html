@@ -1235,12 +1235,14 @@ async function joinRoom(code, name) {
     name: myName, color: colorFor(myId), playing: true, ts: Date.now()
   }, { merge: true });
   startListening();
+  setPresence({ state: 'in-room', roomCode, roomName: roomCode });
   const gate = document.getElementById('gate'); if (gate) gate.remove();
   renderAll();
 }
 
 function resetToGate(message) {
   stopListening();
+  setPresence({ state: 'online', roomCode: null, roomName: null });
   localStorage.removeItem('gn_room'); localStorage.removeItem('gn_name');
   roomCode = ''; myName = '';
   State.games = []; State.swipes = []; State.players = []; State.room = {};
@@ -1290,6 +1292,163 @@ function startPersonalListening() {
     myPersonalGames = snap.docs.map(d => ({ id: d.id, ...d.data() }));
     if (currentScreen === 'profile') renderScreen();
   });
+}
+
+// ---------------------------------------------------------------
+// Amis, demandes d'amis, invitations en salle, présence.
+// Une amitié est un seul document { a, b, requesterId, status, createdAt }
+// avec a < b (uid triés) pour qu'il ne puisse jamais en exister deux entre
+// les deux mêmes personnes. Comme Firestore (mode compat) ne sait pas faire
+// « a == moi OU b == moi » en une requête, on écoute les deux côtés et on
+// fusionne nous-mêmes.
+function friendshipsCol() { return db.collection('friendships'); }
+function invitationsCol() { return db.collection('roomInvitations'); }
+function friendshipId(u1, u2) { return [u1, u2].sort().join('_'); }
+
+let myFriendDocs = [];      // toutes les amitiés (acceptées ou en attente) qui me concernent
+let myInvitations = [];     // invitations de salle en attente reçues
+let friendsUnsubs = [];
+function stopFriendsListening() { friendsUnsubs.forEach(u => { try { u(); } catch (e) {} }); friendsUnsubs = []; }
+function startFriendsListening() {
+  stopFriendsListening();
+  if (!authUser) return;
+  const merge = (side, snap) => {
+    myFriendDocs = myFriendDocs.filter(d => d._side !== side).concat(snap.docs.map(d => ({ id: d.id, _side: side, ...d.data() })));
+    if (currentScreen === 'profile' || currentScreen === 'home') renderScreen();
+  };
+  friendsUnsubs.push(friendshipsCol().where('a', '==', authUser.uid).onSnapshot(s => merge('a', s), () => {}));
+  friendsUnsubs.push(friendshipsCol().where('b', '==', authUser.uid).onSnapshot(s => merge('b', s), () => {}));
+  friendsUnsubs.push(invitationsCol().where('receiverId', '==', authUser.uid).onSnapshot(snap => {
+    myInvitations = snap.docs.map(d => ({ id: d.id, ...d.data() })).filter(i => i.status === 'pending');
+    if (currentScreen === 'profile' || currentScreen === 'home') renderScreen();
+  }, () => {}));
+}
+function acceptedFriends() {
+  const seen = new Set();
+  return myFriendDocs.filter(f => f.status === 'accepted' && !seen.has(f.id) && seen.add(f.id))
+    .map(f => ({ friendshipId: f.id, uid: f.a === authUser.uid ? f.b : f.a, name: f.a === authUser.uid ? f.bName : f.aName }));
+}
+function incomingRequests() {
+  return myFriendDocs.filter(f => f.status === 'pending' && f.requesterId !== authUser.uid);
+}
+function hasPendingOrAccepted(otherUid) {
+  return myFriendDocs.some(f => (f.a === otherUid || f.b === otherUid) && f.status !== 'declined');
+}
+async function sendFriendRequest(otherUid, otherName) {
+  const id = friendshipId(authUser.uid, otherUid);
+  const [a, b] = [authUser.uid, otherUid].sort();
+  const aName = a === authUser.uid ? myProfile.username : otherName;
+  const bName = b === authUser.uid ? myProfile.username : otherName;
+  await friendshipsCol().doc(id).set({ a, b, aName, bName, requesterId: authUser.uid, status: 'pending', createdAt: Date.now() });
+}
+async function respondFriendRequest(fid, accept) {
+  if (accept) await friendshipsCol().doc(fid).update({ status: 'accepted' });
+  else await friendshipsCol().doc(fid).delete();
+}
+async function removeFriend(fid) { await friendshipsCol().doc(fid).delete().catch(() => toast('Impossible de retirer cet ami.')); }
+function roomRefFor(code) { return db.collection('rooms').doc(code.toUpperCase().trim()); }
+
+function showInvitationsModal() {
+  closeModal();
+  const ov = document.createElement('div'); ov.className = 'modal-overlay'; ov.id = 'modalOverlay';
+  const box = document.createElement('div'); box.className = 'modal-box';
+  box.innerHTML = '<p><strong>Invitations</strong></p>';
+  const list = document.createElement('div'); list.style.cssText = 'display:flex;flex-direction:column;gap:10px;margin:4px 0 14px;';
+  if (!myInvitations.length) { const p = document.createElement('p'); p.textContent = 'Aucune invitation en attente.'; list.appendChild(p); }
+  myInvitations.forEach(inv => {
+    const row = document.createElement('div'); row.className = 'inline-form';
+    row.innerHTML = '<p style="margin:0;"><b>' + escapeHtml(inv.senderName) + '</b> t\'invite à rejoindre « ' + escapeHtml(inv.roomName || inv.roomCode) + ' ».</p>' +
+      '<div class="btn-row"><button class="btn btn-ghost" data-a="decline">Refuser</button><button class="btn btn-primary" data-a="accept">Rejoindre</button></div>';
+    row.querySelector('[data-a="accept"]').onclick = () => respondInvitation(inv, true);
+    row.querySelector('[data-a="decline"]').onclick = () => respondInvitation(inv, false);
+    list.appendChild(row);
+  });
+  box.appendChild(list);
+  const closeBtn = document.createElement('button'); closeBtn.className = 'btn btn-ghost'; closeBtn.style.width = '100%'; closeBtn.textContent = 'Fermer';
+  closeBtn.onclick = closeModal;
+  box.appendChild(closeBtn);
+  ov.appendChild(box);
+  ov.addEventListener('click', e => { if (e.target === ov) closeModal(); });
+  document.body.appendChild(ov);
+}
+async function respondInvitation(inv, accept) {
+  closeModal();
+  if (!accept) { invitationsCol().doc(inv.id).update({ status: 'declined' }).catch(() => {}); return; }
+  try {
+    const snap = await roomRefFor(inv.roomCode).get();
+    if (!snap.exists || (snap.data() || {}).closed) {
+      toast('Cette soirée est terminée. La salle n\'est plus disponible.');
+      invitationsCol().doc(inv.id).update({ status: 'declined' }).catch(() => {});
+      return;
+    }
+  } catch (e) {}
+  invitationsCol().doc(inv.id).update({ status: 'accepted' }).catch(() => {});
+  await joinRoomAsAccount(inv.roomCode);
+}
+
+function showInviteFriendsModal() {
+  closeModal();
+  const ov = document.createElement('div'); ov.className = 'modal-overlay'; ov.id = 'modalOverlay';
+  const box = document.createElement('div'); box.className = 'modal-box';
+  const friends = acceptedFriends();
+  box.innerHTML = '<p><strong>Inviter des amis</strong></p>';
+  if (!friends.length) {
+    box.innerHTML += '<p>Tu n\'as pas encore d\'ami sur le site. Ajoute-en depuis ton profil.</p><button class="btn btn-primary" id="ifClose" style="width:100%;">Fermer</button>';
+  } else {
+    const list = document.createElement('div'); list.className = 'import-preview';
+    const inRoom = new Set(State.players.map(p => p.id));
+    const alreadyInvited = new Set(); // rempli en tâche de fond ci-dessous
+    friends.forEach(f => {
+      const row = document.createElement('label'); row.className = 'import-row';
+      const here = inRoom.has(f.uid);
+      row.innerHTML = '<input type="checkbox" data-uid="' + f.uid + '" data-name="' + escapeHtml(f.name || '') + '"' + (here ? ' disabled' : '') + '>' +
+        '<span class="ir-name">' + escapeHtml(f.name || 'Ami·e') + '</span>' +
+        (here ? '<span class="ir-meta">✓ Déjà dans la salle</span>' : '');
+      list.appendChild(row);
+    });
+    box.appendChild(list);
+    const sendBtn = document.createElement('button'); sendBtn.className = 'btn btn-primary'; sendBtn.style.cssText = 'width:100%;margin-top:10px;';
+    sendBtn.textContent = 'Envoyer les invitations';
+    box.appendChild(sendBtn);
+    const cancelBtn = document.createElement('button'); cancelBtn.className = 'link-btn'; cancelBtn.style.cssText = 'display:block;margin:10px auto 0;';
+    cancelBtn.textContent = 'Annuler'; cancelBtn.onclick = closeModal;
+    box.appendChild(cancelBtn);
+    sendBtn.onclick = async () => {
+      const chosen = Array.from(list.querySelectorAll('input:checked:not(:disabled)'));
+      if (!chosen.length) { toast('Choisis au moins un·e ami·e.'); return; }
+      sendBtn.disabled = true; sendBtn.textContent = 'Envoi…';
+      let sent = 0;
+      for (const cb of chosen) {
+        const uid = cb.dataset.uid, name = cb.dataset.name;
+        try {
+          const existing = await invitationsCol().where('roomCode', '==', roomCode).where('receiverId', '==', uid).where('status', '==', 'pending').get();
+          if (existing.docs.length) continue;
+          await invitationsCol().add({ roomCode, roomName: roomCode, senderId: myId, senderName: myName, receiverId: uid, receiverName: name, status: 'pending', createdAt: Date.now() });
+          sent++;
+        } catch (e) {}
+      }
+      toast(sent ? sent + ' invitation(s) envoyée(s).' : 'Ces ami·e·s ont déjà une invitation en attente.');
+      closeModal();
+    };
+  }
+  ov.appendChild(box);
+  ov.addEventListener('click', e => { if (e.target === ov) closeModal(); });
+  document.body.appendChild(ov);
+  const c = box.querySelector('#ifClose'); if (c) c.onclick = closeModal;
+}
+
+// Présence « au mieux » : Firestore seul ne peut pas détecter une vraie
+// déconnexion (pas de onDisconnect comme la Realtime Database) -- on écrit
+// donc l'état à chaque action significative, et on considère « hors ligne »
+// tout ce qui n'a pas bougé depuis plus de 10 minutes, côté affichage.
+function setPresence(patch) {
+  if (!authUser) return Promise.resolve();
+  return usersCol().doc(authUser.uid).set({ presence: Object.assign({ updatedAt: Date.now() }, patch) }, { merge: true }).catch(() => {});
+}
+function presenceLabel(p) {
+  if (!p || !p.updatedAt || Date.now() - p.updatedAt > 10 * 60 * 1000) return { dot: '⚪', text: 'Hors ligne' };
+  if (p.state === 'in-room' && p.roomName) return { dot: '🟡', text: 'Dans « ' + p.roomName + ' »' };
+  return { dot: '🟢', text: 'En ligne' };
 }
 
 function authErrorMessage(e) {
@@ -1357,6 +1516,12 @@ function renderHomeScreen(el) {
     const cont = document.createElement('button'); cont.className = 'btn btn-primary'; cont.textContent = '➡️ Continuer';
     cont.onclick = () => showScreen('profile');
     actions.appendChild(cont);
+    if (myInvitations.length) {
+      const invBtn = document.createElement('button'); invBtn.className = 'btn btn-ghost';
+      invBtn.textContent = '🔔 ' + myInvitations.length + ' invitation' + (myInvitations.length > 1 ? 's' : '');
+      invBtn.onclick = showInvitationsModal;
+      actions.appendChild(invBtn);
+    }
   } else {
     const loginBtn = document.createElement('button'); loginBtn.className = 'btn btn-primary'; loginBtn.textContent = 'Se connecter';
     loginBtn.onclick = () => showScreen('login');
@@ -1401,7 +1566,9 @@ function renderAuthScreen(el, mode) {
     if (isSignup) {
       auth.createUserWithEmailAndPassword(loginEmail, pass).then(cred => {
         const profile = { username: name, createdAt: Date.now() };
-        return usersCol().doc(cred.user.uid).set(profile).then(() => { myProfile = profile; });
+        return usersCol().doc(cred.user.uid).set(profile)
+          .then(() => db.collection('usernames').doc(name.toLowerCase()).set({ uid: cred.user.uid, username: name }))
+          .then(() => { myProfile = profile; });
       }).then(() => {
         startPersonalListening();
         showScreen('profile');
@@ -1414,6 +1581,13 @@ function renderAuthScreen(el, mode) {
   btn.onclick = submit;
   box.querySelectorAll('input').forEach(inp => inp.addEventListener('keydown', e => { if (e.key === 'Enter') submit(); }));
 }
+
+// Comme pour la bibliothèque du salon (libraryFormZone) : ces conteneurs sont
+// créés une seule fois et réutilisés à chaque re-rendu du profil, pour qu'une
+// mise à jour temps réel (jeux, amis, invitations...) n'efface jamais un
+// formulaire que la personne est en train de remplir.
+const profileGameFormZone = document.createElement('div');
+const profileFriendFormZone = document.createElement('div');
 
 function renderProfileScreen(el) {
   const box = gateShell(el, true);
@@ -1436,12 +1610,23 @@ function renderProfileScreen(el) {
     box.appendChild(backBtn);
   }
 
+  if (myInvitations.length) {
+    const invBtn = document.createElement('button'); invBtn.className = 'btn btn-ghost'; invBtn.style.cssText = 'width:100%;margin-top:10px;';
+    invBtn.textContent = '🔔 ' + myInvitations.length + ' invitation' + (myInvitations.length > 1 ? 's' : '') + ' en attente';
+    invBtn.onclick = showInvitationsModal;
+    box.appendChild(invBtn);
+  }
+
   const gTitleRow = document.createElement('div'); gTitleRow.className = 'profile-section-row';
   gTitleRow.innerHTML = '<div class="section-title" style="margin:0;">Mes jeux · ' + myPersonalGames.length + '</div>';
+  const gBtns = document.createElement('div'); gBtns.style.cssText = 'display:flex;gap:8px;';
   const addBtn = document.createElement('button'); addBtn.className = 'btn btn-ghost btn-sm'; addBtn.textContent = '+ Ajouter';
-  gTitleRow.appendChild(addBtn);
+  const steamBtn = document.createElement('button'); steamBtn.className = 'btn btn-ghost btn-sm';
+  steamBtn.textContent = myProfile && myProfile.steamProfile ? '🔄 Synchroniser Steam' : '🔗 Importer Steam';
+  gBtns.appendChild(addBtn); gBtns.appendChild(steamBtn);
+  gTitleRow.appendChild(gBtns);
   box.appendChild(gTitleRow);
-  const formZone = document.createElement('div'); box.appendChild(formZone);
+  const formZone = profileGameFormZone; box.appendChild(formZone);
   addBtn.onclick = () => {
     formZone.innerHTML = '';
     const f = document.createElement('div'); f.className = 'inline-form';
@@ -1455,6 +1640,10 @@ function renderProfileScreen(el) {
       addPersonalGame(name, tag); formZone.innerHTML = '';
     };
   };
+  steamBtn.onclick = () => {
+    if (myProfile && myProfile.steamProfile) syncSteamLibrary(formZone);
+    else showPersonalSteamLink(formZone);
+  };
   if (!myPersonalGames.length) {
     const ib = infoBox('Aucun jeu pour l\'instant', 'Ajoute tes jeux ici : ils seront automatiquement proposés dans chaque salon que tu rejoins.');
     ib.style.marginTop = '10px'; box.appendChild(ib);
@@ -1464,13 +1653,15 @@ function renderProfileScreen(el) {
       const row = document.createElement('div'); row.className = 'game-row';
       row.innerHTML = '<div class="g-cover">' + coverHtml(g, { small: true }) + '</div>' +
         '<div class="g-main"><div class="g-name">' + escapeHtml(g.name) + '</div></div>' +
-        '<span class="g-tag">' + escapeHtml(g.tag || 'Autre') + '</span>' +
+        '<span class="g-tag">' + (g.source === 'steam' ? 'Steam' : 'Manuel') + '</span>' +
         '<button class="icon-btn" title="Supprimer" aria-label="Supprimer">' + ICON_TRASH + '</button>';
       row.querySelector('.icon-btn').onclick = () => showConfirm('Retirer « ' + g.name + ' » de tes jeux ?', 'Retirer', () => removePersonalGame(g.id));
       list.appendChild(row);
     });
     box.appendChild(list);
   }
+
+  renderFriendsSection(box);
 
   const hTitle = document.createElement('div'); hTitle.className = 'section-title'; hTitle.style.marginTop = '22px'; hTitle.textContent = 'Dernières soirées';
   box.appendChild(hTitle);
@@ -1533,11 +1724,187 @@ async function joinRoomAsAccount(code) {
 async function addPersonalGame(name, tag) {
   name = name.trim(); if (!name || !authUser) return;
   if (myPersonalGames.some(g => normName(g.name) === normName(name))) { toast('Déjà dans tes jeux.'); return; }
-  const ref = await personalGamesCol().add({ name, tag: (tag || 'Autre').trim() || 'Autre', ts: Date.now(), coverUrl: null });
+  const ref = await personalGamesCol().add({ name, tag: (tag || 'Autre').trim() || 'Autre', ts: Date.now(), coverUrl: null, source: 'manual' });
   const found = await fetchSteamCover(name);
   if (found) ref.update({ coverUrl: found.image, coverFallback: found.fallbackImage, appid: found.appid || null }).catch(() => {});
 }
 async function removePersonalGame(id) { try { await personalGamesCol().doc(id).delete(); } catch (e) {} }
+
+// ---- Import / synchro Steam vers la bibliothèque personnelle ----
+// Volontairement séparé de importGames() (utilisé par les salons) : la
+// bibliothèque personnelle n'a ni « addedByList » ni fusion multi-joueurs,
+// juste un jeu qui appartient à un seul compte, avec sa provenance (source).
+async function importPersonalGames(items) {
+  const existing = new Set(myPersonalGames.map(g => normName(g.name)));
+  const toAdd = items.filter(it => it.name && !existing.has(normName(it.name)));
+  for (const it of toAdd) {
+    try {
+      await personalGamesCol().add({
+        name: it.name.trim(), tag: it.tag || 'Steam', ts: Date.now(),
+        coverUrl: it.image || null, coverFallback: it.fallbackImage || null, appid: it.appid || null, source: 'steam',
+      });
+    } catch (e) {}
+  }
+  return toAdd.length;
+}
+function showPersonalSteamLink(zone) {
+  zone.innerHTML = '';
+  const f = document.createElement('div'); f.className = 'inline-form';
+  f.innerHTML =
+    '<div class="hint">Colle le lien de ton profil Steam (ou ton pseudo, ou ton ID à 17 chiffres). Ton profil doit avoir <b>« Détails du jeu »</b> réglé sur <b>Public</b>.</div>' +
+    '<input type="text" id="psInput" placeholder="steamcommunity.com/id/ton-pseudo" autocapitalize="off" autocorrect="off" spellcheck="false">' +
+    '<div class="btn-row"><button class="btn btn-ghost" id="psCancel">Annuler</button><button class="btn btn-primary" id="psGo">Voir mes jeux</button></div>' +
+    '<div class="hint" id="psStatus"></div>';
+  zone.appendChild(f);
+  const input = f.querySelector('#psInput'), go = f.querySelector('#psGo'), status = f.querySelector('#psStatus');
+  f.querySelector('#psCancel').onclick = () => { zone.innerHTML = ''; };
+  const run = async () => {
+    const val = input.value.trim();
+    if (!val) { toast('Colle le lien de ton profil Steam.'); return; }
+    go.disabled = true; status.textContent = 'Connexion à Steam…';
+    try {
+      const data = await fetchSteamLibrary(val);
+      await usersCol().doc(authUser.uid).set({ steamProfile: val, steamId: data.steamid }, { merge: true });
+      myProfile = Object.assign({}, myProfile, { steamProfile: val, steamId: data.steamid });
+      showPersonalSteamPreview(zone, data.games);
+    } catch (e) {
+      status.textContent = steamErrorMessage(e && e.code);
+      go.disabled = false;
+    }
+  };
+  go.onclick = run;
+  input.addEventListener('keydown', e => { if (e.key === 'Enter') run(); });
+}
+function showPersonalSteamPreview(zone, games, onlyNew) {
+  zone.innerHTML = '';
+  const already = new Set(myPersonalGames.map(g => normName(g.name)));
+  const pool = onlyNew ? games.filter(g => !already.has(normName(g.name))) : games;
+  const box = document.createElement('div'); box.className = 'inline-form';
+  if (!pool.length) {
+    box.innerHTML = '<p>' + (onlyNew ? 'Aucun nouveau jeu depuis la dernière synchro.' : 'Aucun jeu trouvé sur ce compte Steam.') + '</p>';
+    zone.appendChild(box);
+    return;
+  }
+  box.innerHTML = '<div class="hint"><b>' + pool.length + '</b> jeu(x)' + (onlyNew ? ' nouveau(x) sur Steam' : '') + '. Les jeux déjà dans ta liste sont cochés « déjà ajouté ».</div>';
+  const search = document.createElement('input'); search.type = 'text'; search.placeholder = 'Rechercher…'; box.appendChild(search);
+  const tools = document.createElement('div'); tools.className = 'import-tools';
+  tools.innerHTML = '<button class="btn btn-ghost btn-sm" data-a="all">Tout sélectionner</button><button class="btn btn-ghost btn-sm" data-a="none">Tout désélectionner</button>';
+  box.appendChild(tools);
+  const preview = document.createElement('div'); preview.className = 'import-preview';
+  pool.forEach((g, i) => {
+    const already_ = already.has(normName(g.name));
+    const row = document.createElement('label'); row.className = 'import-row'; row.dataset.name = g.name.toLowerCase();
+    row.innerHTML = '<input type="checkbox" data-i="' + i + '"' + (already_ ? ' disabled' : ' checked') + '>' +
+      '<span class="ir-name">' + escapeHtml(g.name) + '</span>' +
+      (already_ ? '<span class="ir-meta">✓ Déjà ajouté</span>' : '<span class="ir-meta">' + hoursLabel(g.playtime) + '</span>');
+    preview.appendChild(row);
+  });
+  box.appendChild(preview);
+  search.addEventListener('input', () => {
+    const q = search.value.trim().toLowerCase();
+    preview.querySelectorAll('.import-row').forEach(r => { r.style.display = r.dataset.name.includes(q) ? '' : 'none'; });
+  });
+  tools.addEventListener('click', e => {
+    const a = e.target.dataset && e.target.dataset.a; if (!a) return;
+    preview.querySelectorAll('input:not(:disabled)').forEach(b => { b.checked = a === 'all'; });
+  });
+  const confirmBtn = document.createElement('button'); confirmBtn.className = 'btn btn-primary'; confirmBtn.style.marginTop = '4px';
+  confirmBtn.textContent = 'Ajouter les jeux sélectionnés';
+  confirmBtn.onclick = async () => {
+    const chosen = Array.from(preview.querySelectorAll('input:checked:not(:disabled)')).map(cb => pool[+cb.dataset.i]);
+    if (!chosen.length) { toast('Coche au moins un jeu.'); return; }
+    confirmBtn.disabled = true; confirmBtn.textContent = 'Import en cours…';
+    const n = await importPersonalGames(chosen.map(g => ({ name: g.name, tag: 'Steam', appid: g.appid, image: g.image, fallbackImage: g.fallbackImage })));
+    toast(n + ' jeu(x) ajouté(s) à ta liste.');
+    zone.innerHTML = '';
+  };
+  box.appendChild(confirmBtn);
+  zone.appendChild(box);
+}
+async function syncSteamLibrary(zone) {
+  zone.innerHTML = '<div class="hint">Synchronisation avec Steam…</div>';
+  try {
+    const data = await fetchSteamLibrary(myProfile.steamProfile);
+    showPersonalSteamPreview(zone, data.games, true);
+  } catch (e) {
+    zone.innerHTML = '';
+    toast(steamErrorMessage(e && e.code));
+  }
+}
+
+// ---- Amis ----
+function renderFriendsSection(box) {
+  const row = document.createElement('div'); row.className = 'profile-section-row';
+  const friends = acceptedFriends();
+  row.innerHTML = '<div class="section-title" style="margin:0;">Mes amis · ' + friends.length + '</div>';
+  const addFriendBtn = document.createElement('button'); addFriendBtn.className = 'btn btn-ghost btn-sm'; addFriendBtn.textContent = '+ Ajouter';
+  row.appendChild(addFriendBtn);
+  box.appendChild(row);
+
+  const fFormZone = profileFriendFormZone; box.appendChild(fFormZone);
+  addFriendBtn.onclick = () => {
+    fFormZone.innerHTML = '';
+    const f = document.createElement('div'); f.className = 'inline-form';
+    f.innerHTML = '<input type="text" id="fsName" placeholder="Pseudo de ton ami·e"><div class="btn-row"><button class="btn btn-ghost" id="fsCancel">Annuler</button><button class="btn btn-primary" id="fsGo">Rechercher</button></div><div id="fsResult"></div>';
+    fFormZone.appendChild(f);
+    f.querySelector('#fsCancel').onclick = () => { fFormZone.innerHTML = ''; };
+    const result = f.querySelector('#fsResult');
+    f.querySelector('#fsGo').onclick = async () => {
+      const name = f.querySelector('#fsName').value.trim();
+      result.innerHTML = '';
+      if (!name) { toast('Entre un pseudo.'); return; }
+      if (normName(name) === normName(myProfile.username)) { result.innerHTML = '<p>C\'est toi 🙂</p>'; return; }
+      try {
+        const snap = await db.collection('usernames').doc(name.toLowerCase()).get();
+        if (!snap.exists) { result.innerHTML = '<p>Aucun compte ne porte ce pseudo.</p>'; return; }
+        const otherUid = snap.data().uid, otherName = snap.data().username;
+        if (hasPendingOrAccepted(otherUid)) { result.innerHTML = '<p>Vous êtes déjà ami·e·s, ou une demande est en attente.</p>'; return; }
+        const p = document.createElement('p'); p.innerHTML = '<b>' + escapeHtml(otherName) + '</b>';
+        const sendBtn = document.createElement('button'); sendBtn.className = 'btn btn-primary'; sendBtn.style.marginTop = '8px';
+        sendBtn.textContent = 'Envoyer une demande d\'ami'; 
+        sendBtn.onclick = async () => { await sendFriendRequest(otherUid, otherName); toast('Demande envoyée à ' + otherName + '.'); fFormZone.innerHTML = ''; };
+        result.appendChild(p); result.appendChild(sendBtn);
+      } catch (e) { result.innerHTML = '<p>Recherche impossible pour le moment.</p>'; }
+    };
+  };
+
+  const incoming = incomingRequests();
+  if (incoming.length) {
+    incoming.forEach(f => {
+      const reqName = f.requesterId === f.a ? f.aName : f.bName;
+      const rrow = document.createElement('div'); rrow.className = 'inline-form'; rrow.style.marginTop = '8px';
+      rrow.innerHTML = '<p style="margin:0;"><b>' + escapeHtml(reqName) + '</b> souhaite t\'ajouter comme ami·e.</p>' +
+        '<div class="btn-row"><button class="btn btn-ghost" data-a="decline">Refuser</button><button class="btn btn-primary" data-a="accept">Accepter</button></div>';
+      rrow.querySelector('[data-a="accept"]').onclick = () => respondFriendRequest(f.id, true);
+      rrow.querySelector('[data-a="decline"]').onclick = () => respondFriendRequest(f.id, false);
+      box.appendChild(rrow);
+    });
+  }
+
+  const listHolder = document.createElement('div'); listHolder.className = 'game-list'; listHolder.style.marginTop = '10px';
+  box.appendChild(listHolder);
+  if (!friends.length) {
+    listHolder.appendChild(infoBox('Pas encore d\'ami', 'Ajoute des ami·e·s avec leur pseudo pour pouvoir les inviter dans tes salons.'));
+  } else {
+    friends.forEach(f => {
+      const frow = document.createElement('div'); frow.className = 'game-row'; frow.dataset.uid = f.uid;
+      frow.innerHTML = '<div class="g-main"><div class="g-name">' + escapeHtml(f.name || 'Ami·e') + '</div><div class="g-by" data-presence>…</div></div>' +
+        '<button class="icon-btn" title="Retirer" aria-label="Retirer">' + ICON_TRASH + '</button>';
+      frow.querySelector('.icon-btn').onclick = () => showConfirm('Retirer ' + f.name + ' de tes amis ?', 'Retirer', () => removeFriend(f.friendshipId));
+      listHolder.appendChild(frow);
+    });
+    // Présence : lecture ponctuelle (pas d'abonnement temps réel par ami, pour rester simple et léger).
+    Promise.all(friends.map(f => usersCol().doc(f.uid).get().then(s => [f.uid, s.exists ? s.data().presence : null]).catch(() => [f.uid, null])))
+      .then(pairs => {
+        pairs.forEach(([uid, presence]) => {
+          const el = listHolder.querySelector('.game-row[data-uid="' + uid + '"] [data-presence]');
+          if (!el) return;
+          const p = presenceLabel(presence);
+          el.textContent = p.dot + ' ' + p.text;
+        });
+      });
+  }
+}
 
 // ---- Historique des soirées ----
 function loadHistoryList(container) {
@@ -2724,6 +3091,12 @@ function renderRoulette(main) {
   wrap.appendChild(gamesSection);
   renderChiefGamesSection(gamesSection, chief);
 
+  if (authUser && State.room && !State.room.closed) {
+    const inviteBtn = document.createElement('button'); inviteBtn.className = 'btn btn-ghost close-session-btn';
+    inviteBtn.textContent = '👥 Inviter des amis';
+    inviteBtn.onclick = showInviteFriendsModal;
+    wrap.appendChild(inviteBtn);
+  }
   if (isHost() && State.room && !State.room.closed) {
     const closeBtn = document.createElement('button'); closeBtn.className = 'btn btn-ghost close-session-btn';
     closeBtn.textContent = '🏁 Clôturer la soirée';
@@ -2979,10 +3352,13 @@ auth.onAuthStateChanged(user => {
     usersCol().doc(user.uid).get().then(snap => {
       myProfile = snap.exists ? snap.data() : { username: 'Joueur·euse', createdAt: Date.now() };
       startPersonalListening();
+      startFriendsListening();
+      setPresence({ state: roomCode ? 'in-room' : 'online', roomCode: roomCode || null, roomName: (State.room && State.room.name) || roomCode || null });
       afterAuthResolved();
     }).catch(() => { myProfile = { username: 'Joueur·euse' }; afterAuthResolved(); });
   } else {
-    myProfile = null; myPersonalGames = []; stopPersonalListening();
+    myProfile = null; myPersonalGames = []; myFriendDocs = []; myInvitations = [];
+    stopPersonalListening(); stopFriendsListening();
     afterAuthResolved();
   }
 });
